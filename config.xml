@@ -23,14 +23,6 @@
         <icon density="xhdpi" src="img/icon-96.png" />
         <icon density="xxhdpi" src="img/icon-144.png" />
         <icon density="xxxhdpi" src="img/icon-192.png" />
-        <splash density="land-ldpi" src="img/splash-320x200.png" />
-        <splash density="land-mdpi" src="img/splash-480x320.png" />
-        <splash density="land-hdpi" src="img/splash-800x480.png" />
-        <splash density="land-xhdpi" src="img/splash-1280x720.png" />
-        <splash density="port-ldpi" src="img/splash-200x320.png" />
-        <splash density="port-mdpi" src="img/splash-320x480.png" />
-        <splash density="port-hdpi" src="img/splash-480x800.png" />
-        <splash density="port-xhdpi" src="img/splash-720x1280.png" />
     </platform>
     
     <platform name="ios">
@@ -47,7 +39,6 @@
     <plugin name="cordova-plugin-network-information" spec="2" />
     <plugin name="cordova-plugin-dialogs" spec="2" />
     <plugin name="cordova-plugin-vibration" spec="3" />
-    <plugin name="cordova-plugin-splashscreen" spec="5" />
     
     <!-- 权限设置 -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -60,11 +51,11 @@
     <preference name="android-minSdkVersion" value="22" />
     <preference name="android-targetSdkVersion" value="30" />
     <preference name="BackupWebStorage" value="none" />
-    <preference name="SplashMaintainAspectRatio" value="true" />
-    <preference name="FadeSplashScreenDuration" value="300" />
-    <preference name="SplashShowOnlyFirstTime" value="false" />
-    <preference name="SplashScreen" value="screen" />
-    <preference name="SplashScreenDelay" value="3000" />
+    <!-- 禁用启动画面 -->
+    <preference name="SplashScreen" value="none" />
+    <preference name="SplashScreenDelay" value="0" />
+    <preference name="AutoHideSplashScreen" value="true" />
+    <preference name="ShowSplashScreenSpinner" value="false" />
     
     <!-- CSP设置 -->
     <access origin="*" />

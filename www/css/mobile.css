@@ -506,6 +506,14 @@ body {
     box-shadow: var(--shadow);
 }
 
+.primary-btn.danger {
+    background: var(--danger-color);
+}
+
+.primary-btn.danger:hover {
+    background: #c82333;
+}
+
 .secondary-btn {
     background: var(--white);
     color: var(--text-color);

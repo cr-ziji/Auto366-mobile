@@ -1,7 +1,7 @@
 {
   "name": "auto366-mobile",
   "displayName": "Auto366 Mobile",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "天学网自动化答题工具移动版 - 解放双手，提高学习效率！",
   "main": "index.js",
   "scripts": {
@@ -9,6 +9,7 @@
     "serve": "cordova serve",
     "run-android": "cordova run android",
     "run-ios": "cordova run ios",
+    "run": "cordova run browser",
     "prepare": "cordova prepare"
   },
   "keywords": [
@@ -29,7 +30,6 @@
       "cordova-plugin-file-transfer": {},
       "cordova-plugin-network-information": {},
       "cordova-plugin-dialogs": {},
-      "cordova-plugin-splashscreen": {},
       "cordova-plugin-vibration": {}
     }
   },
@@ -42,7 +42,6 @@
     "cordova-plugin-file": "^8.0.0",
     "cordova-plugin-file-transfer": "^2.0.0",
     "cordova-plugin-network-information": "^3.0.0",
-    "cordova-plugin-splashscreen": "^6.0.2",
     "cordova-plugin-statusbar": "^4.0.0",
     "cordova-plugin-vibration": "^3.1.1",
     "cordova-plugin-whitelist": "^1.3.5"

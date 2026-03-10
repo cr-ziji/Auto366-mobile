@@ -15,16 +15,16 @@
     <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="css/mobile.css">
     
-    <!-- 引入图标库 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- 引入本地图标库 -->
+    <link rel="stylesheet" href="css/bootstrap-icons.css">
 </head>
 
 <body>
     <!-- 启动画面 -->
     <div id="splashScreen" class="splash-screen">
         <div class="splash-content">
-            <img src="img/icon.png" alt="Auto366" class="splash-logo">
-            <h1 class="splash-title">Auto366</h1>
+            <img src="img/icon.png" alt="Auto366 Mobile" class="splash-logo">
+            <h1 class="splash-title">Auto366 Mobile</h1>
             <p class="splash-subtitle">天学网自动化答题工具</p>
             <div class="loading-spinner">
                 <div class="spinner"></div>
@@ -38,8 +38,8 @@
         <header class="top-navbar">
             <div class="navbar-content">
                 <div class="navbar-left">
-                    <img src="img/icon.png" alt="Auto366" class="navbar-logo">
-                    <span class="navbar-title">Auto366</span>
+                    <img src="img/icon.png" alt="Auto366 Mobile" class="navbar-logo">
+                    <span class="navbar-title">Auto366 Mobile</span>
                 </div>
                 <div class="navbar-right">
                     <button id="menuToggle" class="menu-toggle">
@@ -52,8 +52,8 @@
         <!-- 侧边菜单 -->
         <nav id="sideMenu" class="side-menu">
             <div class="menu-header">
-                <img src="img/icon.png" alt="Auto366" class="menu-logo">
-                <h2 class="menu-title">Auto366</h2>
+                <img src="img/icon.png" alt="Auto366 Mobile" class="menu-logo">
+                <h2 class="menu-title">Auto366 Mobile</h2>
                 <button id="menuClose" class="menu-close">
                     <i class="bi bi-x"></i>
                 </button>
@@ -65,23 +65,23 @@
                     <span>代理服务</span>
                 </a>
                 <a href="#" class="menu-item" data-view="answers">
-                    <i class="bi bi-list-check"></i>
+                    <i class="bi bi-clipboard-check"></i>
                     <span>答案获取</span>
                 </a>
                 <a href="#" class="menu-item" data-view="rules">
-                    <i class="bi bi-list-ul"></i>
+                    <i class="bi bi-file-earmark-ruled"></i>
                     <span>规则管理</span>
                 </a>
                 <a href="#" class="menu-item" data-view="community">
-                    <i class="bi bi-cloud-download"></i>
+                    <i class="bi bi-cloud-arrow-down"></i>
                     <span>社区规则</span>
                 </a>
                 <a href="#" class="menu-item" data-view="logs">
-                    <i class="bi bi-terminal"></i>
+                    <i class="bi bi-journal-text"></i>
                     <span>监听日志</span>
                 </a>
                 <a href="#" class="menu-item" data-view="settings">
-                    <i class="bi bi-gear"></i>
+                    <i class="bi bi-sliders"></i>
                     <span>设置</span>
                 </a>
             </div>
@@ -133,7 +133,7 @@
                             
                             <div class="status-item">
                                 <div class="status-info">
-                                    <i class="bi bi-cpu status-icon"></i>
+                                    <i class="bi bi-activity status-icon"></i>
                                     <div class="status-text">
                                         <span class="status-label">处理状态</span>
                                         <span id="processStatus" class="status-value stopped">等待中</span>
@@ -150,7 +150,7 @@
                         </div>
                         <div class="card-content">
                             <button id="toggleProxyBtn" class="primary-btn full-width">
-                                <i class="bi bi-play-circle"></i>
+                                <i class="bi bi-play-fill"></i>
                                 <span>启动代理</span>
                             </button>
                             
@@ -160,7 +160,7 @@
                                     <span>清理缓存</span>
                                 </button>
                                 <button id="settingsBtn" class="secondary-btn">
-                                    <i class="bi bi-gear"></i>
+                                    <i class="bi bi-sliders"></i>
                                     <span>设置</span>
                                 </button>
                             </div>
@@ -265,7 +265,7 @@
                     <div class="rules-card">
                         <div id="rulesContainer" class="rules-container">
                             <div class="no-rules">
-                                <i class="bi bi-collection"></i>
+                                <i class="bi bi-folder-plus"></i>
                                 <p>暂无规则配置</p>
                                 <small>点击右上角 + 号添加新规则</small>
                             </div>
@@ -337,7 +337,7 @@
                     <div class="stats-card">
                         <div class="card-content">
                             <div class="stats-item">
-                                <i class="bi bi-list-ul"></i>
+                                <i class="bi bi-journal-text"></i>
                                 <span>共 <span id="requestCount">0</span> 条信息</span>
                             </div>
                         </div>
@@ -410,7 +410,7 @@
                         </div>
                         <div class="card-content">
                             <div class="about-info">
-                                <img src="img/icon.png" alt="Auto366" class="about-logo">
+                                <img src="img/icon.png" alt="Auto366 Mobile" class="about-logo">
                                 <h4>Auto366 Mobile</h4>
                                 <p>版本 1.0.0</p>
                                 <p class="about-description">天学网自动化答题工具移动版</p>

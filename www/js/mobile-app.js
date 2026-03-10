@@ -69,7 +69,7 @@ class Auto366Mobile {
                     }, 50);
                 }, 300);
             }
-        }, 2000);
+        }, 500); // 减少到500ms
     }
 
     initEventListeners() {
@@ -91,6 +91,9 @@ class Auto366Mobile {
         if (menuOverlay) {
             menuOverlay.addEventListener('click', this.closeMenu);
         }
+
+        // 添加滑动手势支持
+        this.initSwipeGestures();
 
         // 菜单项点击
         const menuItems = document.querySelectorAll('.menu-item');
@@ -209,6 +212,50 @@ class Auto366Mobile {
         this.initSettingsListeners();
         
         console.log('Event listeners initialized');
+    }
+
+    initSwipeGestures() {
+        let startX = 0;
+        let startY = 0;
+        let isMenuOpen = false;
+        
+        const app = document.getElementById('app');
+        if (!app) return;
+        
+        app.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            isMenuOpen = document.getElementById('sideMenu').classList.contains('open');
+        }, { passive: true });
+        
+        app.addEventListener('touchmove', (e) => {
+            if (!startX || !startY) return;
+            
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+            
+            const diffX = currentX - startX;
+            const diffY = currentY - startY;
+            
+            // 检查是否为水平滑动（水平距离大于垂直距离）
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                // 从左边缘向右滑动打开菜单
+                if (startX < 50 && diffX > 100 && !isMenuOpen) {
+                    this.toggleMenu();
+                    startX = 0; // 重置以避免重复触发
+                }
+                // 向左滑动关闭菜单
+                else if (diffX < -100 && isMenuOpen) {
+                    this.closeMenu();
+                    startX = 0; // 重置以避免重复触发
+                }
+            }
+        }, { passive: true });
+        
+        app.addEventListener('touchend', () => {
+            startX = 0;
+            startY = 0;
+        }, { passive: true });
     }
 
     initSettingsListeners() {
@@ -361,7 +408,7 @@ class Auto366Mobile {
             
             if (toggleBtn) {
                 toggleBtn.disabled = false;
-                toggleBtn.innerHTML = '<i class="bi bi-stop-circle"></i><span>停止代理</span>';
+                toggleBtn.innerHTML = '<i class="bi bi-stop-fill"></i><span>停止代理</span>';
                 toggleBtn.className = 'primary-btn full-width danger';
             }
             
@@ -388,7 +435,7 @@ class Auto366Mobile {
             
             if (toggleBtn) {
                 toggleBtn.disabled = false;
-                toggleBtn.innerHTML = '<i class="bi bi-play-circle"></i><span>启动代理</span>';
+                toggleBtn.innerHTML = '<i class="bi bi-play-fill"></i><span>启动代理</span>';
                 toggleBtn.className = 'primary-btn full-width';
             }
             
