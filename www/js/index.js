@@ -137,7 +137,7 @@ function onOffline() {
 // 全局错误处理
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
-    if (window.app) {
+    if (window.app && typeof window.app.addLog === 'function') {
         window.app.addLog(`应用错误: ${e.error.message}`, 'error');
     }
 });
@@ -145,7 +145,7 @@ window.addEventListener('error', function(e) {
 // 未处理的Promise拒绝
 window.addEventListener('unhandledrejection', function(e) {
     console.error('Unhandled promise rejection:', e.reason);
-    if (window.app) {
+    if (window.app && typeof window.app.addLog === 'function') {
         window.app.addLog(`Promise错误: ${e.reason}`, 'error');
     }
 });

@@ -95,6 +95,11 @@ body {
     gap: 12px;
 }
 
+.navbar-right {
+    display: flex;
+    align-items: center;
+}
+
 .navbar-logo {
     width: 32px;
     height: 32px;
@@ -116,10 +121,21 @@ body {
     border-radius: var(--border-radius-sm);
     cursor: pointer;
     transition: var(--transition);
+    position: relative;
+    z-index: 1001;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .menu-toggle:hover {
     background: var(--light-color);
+}
+
+.menu-toggle:active {
+    background: var(--secondary-color);
 }
 
 /* 侧边菜单 */
