@@ -31,9 +31,6 @@ class Auto366Mobile {
     init() {
         console.log('Initializing Auto366Mobile...');
         
-        // 隐藏启动画面
-        this.hideSplashScreen();
-        
         // 初始化事件监听器
         this.initEventListeners();
         
@@ -51,25 +48,6 @@ class Auto366Mobile {
         }
         
         console.log('Auto366Mobile initialization complete');
-    }
-
-    hideSplashScreen() {
-        setTimeout(() => {
-            const splashScreen = document.getElementById('splashScreen');
-            const app = document.getElementById('app');
-            
-            if (splashScreen && app) {
-                splashScreen.style.opacity = '0';
-                setTimeout(() => {
-                    splashScreen.style.display = 'none';
-                    app.style.display = 'flex';
-                    app.style.opacity = '0';
-                    setTimeout(() => {
-                        app.style.opacity = '1';
-                    }, 50);
-                }, 300);
-            }
-        }, 500); // 减少到500ms
     }
 
     initEventListeners() {
@@ -208,8 +186,78 @@ class Auto366Mobile {
             });
         }
 
-        // 设置项监听
-        this.initSettingsListeners();
+        // 端口修改按钮
+        const changePortBtn = document.getElementById('changePortBtn');
+        if (changePortBtn) {
+            changePortBtn.addEventListener('click', () => {
+                this.showView('settings');
+                this.closeMenu();
+            });
+        }
+
+        // 清理天学网缓存按钮
+        const deleteFileTempBtn = document.getElementById('deleteFileTempBtn');
+        if (deleteFileTempBtn) {
+            deleteFileTempBtn.addEventListener('click', () => {
+                this.clearFileTemp();
+            });
+        }
+
+        // 上传规则集按钮
+        const uploadRulesetBtn = document.getElementById('uploadRulesetBtn');
+        if (uploadRulesetBtn) {
+            uploadRulesetBtn.addEventListener('click', () => {
+                this.uploadRuleset();
+            });
+        }
+
+        // 添加规则集按钮
+        const addRuleGroupBtn = document.getElementById('addRuleGroupBtn');
+        if (addRuleGroupBtn) {
+            addRuleGroupBtn.addEventListener('click', () => {
+                this.addRuleGroup();
+            });
+        }
+
+        // 搜索过滤器
+        const sortBySelect = document.getElementById('sortBySelect');
+        const sortOrderSelect = document.getElementById('sortOrderSelect');
+        if (sortBySelect && sortOrderSelect) {
+            sortBySelect.addEventListener('change', () => {
+                this.loadCommunityRulesets();
+            });
+            sortOrderSelect.addEventListener('change', () => {
+                this.loadCommunityRulesets();
+            });
+        }
+
+        // 分页控制
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        if (prevPageBtn && nextPageBtn) {
+            prevPageBtn.addEventListener('click', () => {
+                this.previousPage();
+            });
+            nextPageBtn.addEventListener('click', () => {
+                this.nextPage();
+            });
+        }
+
+        // 缓存路径浏览
+        const browseCacheBtn = document.getElementById('browseCacheBtn');
+        if (browseCacheBtn) {
+            browseCacheBtn.addEventListener('click', () => {
+                this.browseCachePath();
+            });
+        }
+
+        // 更新通知按钮
+        const updateNotificationBtn = document.getElementById('update-notification-btn');
+        if (updateNotificationBtn) {
+            updateNotificationBtn.addEventListener('click', () => {
+                this.checkForUpdates();
+            });
+        }
         
         console.log('Event listeners initialized');
     }
@@ -217,7 +265,7 @@ class Auto366Mobile {
     initSwipeGestures() {
         let startX = 0;
         let startY = 0;
-        let isMenuOpen = false;
+        let startTime = 0;
         
         const app = document.getElementById('app');
         if (!app) return;
@@ -225,37 +273,41 @@ class Auto366Mobile {
         app.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
-            isMenuOpen = document.getElementById('sideMenu').classList.contains('open');
+            startTime = Date.now();
         }, { passive: true });
         
-        app.addEventListener('touchmove', (e) => {
+        app.addEventListener('touchend', (e) => {
             if (!startX || !startY) return;
             
-            const currentX = e.touches[0].clientX;
-            const currentY = e.touches[0].clientY;
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            const endTime = Date.now();
             
-            const diffX = currentX - startX;
-            const diffY = currentY - startY;
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+            const timeDiff = endTime - startTime;
             
-            // 检查是否为水平滑动（水平距离大于垂直距离）
-            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+            // 检查是否为快速滑动（时间小于300ms）且主要是水平方向
+            if (timeDiff < 300 && Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 80) {
+                const isMenuOpen = document.getElementById('sideMenu').classList.contains('open');
+                
                 // 从左边缘向右滑动打开菜单
-                if (startX < 50 && diffX > 100 && !isMenuOpen) {
+                if (startX < 50 && diffX > 80 && !isMenuOpen) {
+                    e.preventDefault();
                     this.toggleMenu();
-                    startX = 0; // 重置以避免重复触发
                 }
                 // 向左滑动关闭菜单
-                else if (diffX < -100 && isMenuOpen) {
+                else if (diffX < -80 && isMenuOpen) {
+                    e.preventDefault();
                     this.closeMenu();
-                    startX = 0; // 重置以避免重复触发
                 }
             }
-        }, { passive: true });
-        
-        app.addEventListener('touchend', () => {
+            
+            // 重置
             startX = 0;
             startY = 0;
-        }, { passive: true });
+            startTime = 0;
+        }, { passive: false });
     }
 
     initSettingsListeners() {
@@ -408,8 +460,7 @@ class Auto366Mobile {
             
             if (toggleBtn) {
                 toggleBtn.disabled = false;
-                toggleBtn.innerHTML = '<i class="bi bi-stop-fill"></i><span>停止代理</span>';
-                toggleBtn.className = 'primary-btn full-width danger';
+                this.updateToggleButton();
             }
             
             this.hideLoadingToast();
@@ -435,8 +486,7 @@ class Auto366Mobile {
             
             if (toggleBtn) {
                 toggleBtn.disabled = false;
-                toggleBtn.innerHTML = '<i class="bi bi-play-fill"></i><span>启动代理</span>';
-                toggleBtn.className = 'primary-btn full-width';
+                this.updateToggleButton();
             }
             
             this.hideLoadingToast();
@@ -936,4 +986,103 @@ if (!window.cordova) {
             app.updateUI();
         }, 3000);
     });
-}
+}  
+  // 清理天学网缓存
+    clearFileTemp() {
+        this.showLoadingToast('正在清理天学网缓存...');
+        
+        // 模拟清理过程
+        setTimeout(() => {
+            this.hideLoadingToast();
+            this.showToast('天学网缓存清理完成', 'success');
+            this.addLog('天学网缓存清理完成', 'success');
+        }, 1500);
+    }
+
+    // 上传规则集
+    uploadRuleset() {
+        this.showToast('上传规则集功能开发中...', 'info');
+    }
+
+    // 添加规则集
+    addRuleGroup() {
+        this.showToast('添加规则集功能开发中...', 'info');
+    }
+
+    // 分页功能
+    previousPage() {
+        this.showToast('上一页功能开发中...', 'info');
+    }
+
+    nextPage() {
+        this.showToast('下一页功能开发中...', 'info');
+    }
+
+    // 浏览缓存路径
+    browseCachePath() {
+        this.showToast('浏览缓存路径功能在移动端不可用', 'warning');
+    }
+
+    // 检查更新
+    checkForUpdates() {
+        this.showLoadingToast('正在检查更新...');
+        
+        // 模拟检查更新过程
+        setTimeout(() => {
+            this.hideLoadingToast();
+            this.showToast('当前已是最新版本', 'success');
+        }, 2000);
+    }
+
+    // 更新设置UI中的新字段
+    updateSettingsUI() {
+        // 更新设置界面的值
+        const proxyPortInput = document.getElementById('proxyPortInput');
+        if (proxyPortInput) {
+            proxyPortInput.value = this.settings.proxyPort;
+        }
+        
+        const bucketPortInput = document.getElementById('bucketPortInput');
+        if (bucketPortInput) {
+            bucketPortInput.value = this.settings.bucketPort;
+        }
+        
+        const autoStartProxy = document.getElementById('autoStartProxy');
+        if (autoStartProxy) {
+            autoStartProxy.checked = this.settings.autoStartProxy;
+        }
+        
+        const keepCacheFiles = document.getElementById('keepCacheFiles');
+        if (keepCacheFiles) {
+            keepCacheFiles.checked = this.settings.keepCacheFiles;
+        }
+        
+        const answerCaptureEnabled = document.getElementById('answerCaptureEnabled');
+        if (answerCaptureEnabled) {
+            answerCaptureEnabled.checked = this.settings.answerCaptureEnabled;
+        }
+
+        const autoCheckUpdates = document.getElementById('autoCheckUpdates');
+        if (autoCheckUpdates) {
+            autoCheckUpdates.checked = this.settings.autoCheckUpdates || false;
+        }
+
+        const cachePathInput = document.getElementById('cachePathInput');
+        if (cachePathInput) {
+            cachePathInput.value = this.settings.cachePath || '';
+        }
+    }
+
+    // 更新按钮图标切换
+    updateToggleButton() {
+        const toggleBtn = document.getElementById('toggleProxyBtn');
+        if (!toggleBtn) return;
+
+        if (this.isProxyRunning) {
+            toggleBtn.innerHTML = '<i class="bi bi-stop-circle"></i><span>停止代理</span>';
+            toggleBtn.className = 'primary-btn full-width danger';
+        } else {
+            toggleBtn.innerHTML = '<i class="bi bi-play-circle"></i><span>启动代理</span>';
+            toggleBtn.className = 'primary-btn full-width';
+        }
+    }

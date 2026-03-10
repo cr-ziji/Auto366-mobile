@@ -19,7 +19,7 @@
     --shadow-lg: 0 4px 12px rgba(0,0,0,0.15);
     --border-radius: 8px;
     --border-radius-sm: 4px;
-    --transition: all 0.3s ease;
+    --transition: all 0.15s ease-out;
 }
 
 * {
@@ -38,48 +38,6 @@ body {
     user-select: none;
 }
 
-/* 启动画面 */
-.splash-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    color: var(--white);
-}
-
-.splash-content {
-    text-align: center;
-    animation: fadeInUp 0.8s ease;
-}
-
-.splash-logo {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 20px;
-    border-radius: 16px;
-    box-shadow: var(--shadow-lg);
-}
-
-.splash-title {
-    font-size: 32px;
-    font-weight: 700;
-    margin: 0 0 8px 0;
-    color: var(--white);
-}
-
-.splash-subtitle {
-    font-size: 16px;
-    margin: 0 0 30px 0;
-    opacity: 0.9;
-    color: var(--white);
-}
-
 /* 加载动画 */
 .loading-spinner {
     display: flex;
@@ -92,7 +50,7 @@ body {
     width: 32px;
     height: 32px;
     border: 3px solid rgba(255, 255, 255, 0.3);
-    border-top: 3px solid var(--white);
+    border-top: 3px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -100,17 +58,6 @@ body {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 /* 主应用容器 */
@@ -185,7 +132,7 @@ body {
     background: var(--white);
     box-shadow: var(--shadow-lg);
     z-index: 1100;
-    transition: transform 0.3s ease;
+    transition: transform 0.15s ease-out;
     display: flex;
     flex-direction: column;
 }
@@ -226,7 +173,7 @@ body {
     border-radius: var(--border-radius-sm);
     cursor: pointer;
     opacity: 0.8;
-    transition: var(--transition);
+    transition: opacity 0.1s ease;
 }
 
 .menu-close:hover {
@@ -245,7 +192,7 @@ body {
     padding: 16px 20px;
     color: var(--text-color);
     text-decoration: none;
-    transition: var(--transition);
+    transition: background-color 0.1s ease;
     border-left: 3px solid transparent;
 }
 
@@ -294,7 +241,7 @@ body {
     z-index: 1050;
     opacity: 0;
     visibility: hidden;
-    transition: var(--transition);
+    transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
 }
 
 .menu-overlay.show {
@@ -495,7 +442,6 @@ body {
 
 .primary-btn:hover {
     background: var(--primary-dark);
-    transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
 
@@ -534,8 +480,6 @@ body {
 .secondary-btn:hover {
     background: var(--light-color);
     border-color: var(--secondary-color);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
 }
 
 .full-width {
@@ -1083,7 +1027,7 @@ body {
 @keyframes slideInRight {
     from {
         opacity: 0;
-        transform: translateX(30px);
+        transform: translateX(20px);
     }
     to {
         opacity: 1;
@@ -1094,7 +1038,7 @@ body {
 @keyframes slideInUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(10px);
     }
     to {
         opacity: 1;
@@ -1103,11 +1047,11 @@ body {
 }
 
 .view-container.active {
-    animation: slideInRight 0.3s ease;
+    animation: slideInRight 0.15s ease-out;
 }
 
 .card {
-    animation: slideInUp 0.3s ease;
+    animation: slideInUp 0.1s ease-out;
 }
 
 /* 触摸反馈 */
@@ -1116,9 +1060,160 @@ body {
 .icon-btn:active,
 .menu-item:active,
 .answer-item:active {
-    transform: scale(0.98);
+    opacity: 0.8;
 }
 
 .toggle-switch:active .toggle-slider {
-    transform: scale(0.95);
+    transform: scale(0.98);
+}/* 答案获取
+开关样式 */
+.answer-capture-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 16px;
+}
+
+.answer-capture-toggle .toggle-label {
+    font-size: 14px;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+/* 端口修改按钮 */
+.port-change-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-left: 8px;
+}
+
+.port-change-btn:hover {
+    background: var(--light-color);
+    color: var(--primary-color);
+}
+
+/* 更新按钮 */
+.update-btn {
+    background: var(--warning-color);
+    color: var(--white);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-top: 8px;
+}
+
+.update-btn:hover {
+    background: #e0a800;
+    transform: scale(1.05);
+}
+
+/* 搜索过滤器 */
+.search-filters {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.search-filters .form-select {
+    flex: 1;
+    font-size: 14px;
+    padding: 8px 12px;
+}
+
+/* 分页控制 */
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-color);
+    background: var(--light-color);
+}
+
+.page-info {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.pagination-controls .secondary-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+.pagination-controls .secondary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 文件输入组 */
+.file-input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.file-input-group .form-input {
+    flex: 1;
+}
+
+.file-input-group .secondary-btn {
+    white-space: nowrap;
+}
+
+/* 设置项内容 */
+.setting-item-content {
+    width: 100%;
+}
+
+.setting-description {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+    .search-filters {
+        flex-direction: column;
+    }
+    
+    .pagination-controls {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .pagination-controls .secondary-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .file-input-group {
+        flex-direction: column;
+    }
+    
+    .answer-capture-toggle {
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
 }

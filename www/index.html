@@ -1,39 +1,30 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="format-detection" content="telephone=no">
     <meta name="msapplication-tap-highlight" content="no">
     <meta name="color-scheme" content="light dark">
-    
+
     <!-- CSP设置 -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: https: 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content: https:;">
-    
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' data: https: 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content: https:;">
+
     <title>Auto366 Mobile</title>
     <link rel="icon" type="image/png" href="img/icon.png">
     <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="css/mobile.css">
-    
+
     <!-- 引入本地图标库 -->
     <link rel="stylesheet" href="css/bootstrap-icons.css">
 </head>
 
 <body>
-    <!-- 启动画面 -->
-    <div id="splashScreen" class="splash-screen">
-        <div class="splash-content">
-            <img src="img/icon.png" alt="Auto366 Mobile" class="splash-logo">
-            <h1 class="splash-title">Auto366 Mobile</h1>
-            <p class="splash-subtitle">天学网自动化答题工具</p>
-            <div class="loading-spinner">
-                <div class="spinner"></div>
-            </div>
-        </div>
-    </div>
-
     <!-- 主应用界面 -->
-    <div id="app" class="app-container" style="display: none;">
+    <div id="app" class="app-container">
         <!-- 顶部导航栏 -->
         <header class="top-navbar">
             <div class="navbar-content">
@@ -58,38 +49,41 @@
                     <i class="bi bi-x"></i>
                 </button>
             </div>
-            
+
             <div class="menu-items">
                 <a href="#" class="menu-item active" data-view="proxy">
                     <i class="bi bi-router"></i>
                     <span>代理服务</span>
                 </a>
                 <a href="#" class="menu-item" data-view="answers">
-                    <i class="bi bi-clipboard-check"></i>
+                    <i class="bi bi-list-check"></i>
                     <span>答案获取</span>
                 </a>
                 <a href="#" class="menu-item" data-view="rules">
-                    <i class="bi bi-file-earmark-ruled"></i>
+                    <i class="bi bi-list-ul"></i>
                     <span>规则管理</span>
                 </a>
                 <a href="#" class="menu-item" data-view="community">
-                    <i class="bi bi-cloud-arrow-down"></i>
+                    <i class="bi bi-cloud-download"></i>
                     <span>社区规则</span>
                 </a>
                 <a href="#" class="menu-item" data-view="logs">
-                    <i class="bi bi-journal-text"></i>
+                    <i class="bi bi-terminal"></i>
                     <span>监听日志</span>
                 </a>
                 <a href="#" class="menu-item" data-view="settings">
-                    <i class="bi bi-sliders"></i>
+                    <i class="bi bi-gear"></i>
                     <span>设置</span>
                 </a>
             </div>
-            
+
             <div class="menu-footer">
                 <div class="app-version">
                     <span>版本 1.0.0</span>
                 </div>
+                <button id="update-notification-btn" class="update-btn" title="检查更新" style="display: none;">
+                    <i class="bi bi-arrow-up-circle"></i>
+                </button>
             </div>
         </nav>
 
@@ -103,7 +97,7 @@
                 <div class="view-header">
                     <h1 class="view-title">代理服务</h1>
                 </div>
-                
+
                 <div class="card-container">
                     <!-- 服务状态卡片 -->
                     <div class="status-card">
@@ -118,9 +112,12 @@
                                         <span class="status-label">代理状态</span>
                                         <span id="proxyStatus" class="status-value stopped">未启动</span>
                                     </div>
+                                    <button id="changePortBtn" class="port-change-btn" title="修改端口">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
                                 </div>
                             </div>
-                            
+
                             <div class="status-item">
                                 <div class="status-info">
                                     <i class="bi bi-shield-lock status-icon"></i>
@@ -130,10 +127,10 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="status-item">
                                 <div class="status-info">
-                                    <i class="bi bi-activity status-icon"></i>
+                                    <i class="bi bi-cpu status-icon"></i>
                                     <div class="status-text">
                                         <span class="status-label">处理状态</span>
                                         <span id="processStatus" class="status-value stopped">等待中</span>
@@ -150,18 +147,18 @@
                         </div>
                         <div class="card-content">
                             <button id="toggleProxyBtn" class="primary-btn full-width">
-                                <i class="bi bi-play-fill"></i>
+                                <i class="bi bi-play-circle"></i>
                                 <span>启动代理</span>
                             </button>
-                            
+
                             <div class="button-group">
                                 <button id="clearCacheBtn" class="secondary-btn">
                                     <i class="bi bi-trash"></i>
-                                    <span>清理缓存</span>
+                                    <span>清理Auto366缓存</span>
                                 </button>
-                                <button id="settingsBtn" class="secondary-btn">
-                                    <i class="bi bi-sliders"></i>
-                                    <span>设置</span>
+                                <button id="deleteFileTempBtn" class="secondary-btn">
+                                    <i class="bi bi-file-earmark-x"></i>
+                                    <span>清理天学网缓存</span>
                                 </button>
                             </div>
                         </div>
@@ -193,15 +190,19 @@
                 <div class="view-header">
                     <h1 class="view-title">答案获取</h1>
                     <div class="view-actions">
-                        <button id="clearAnswersBtn" class="icon-btn">
+                        <div class="answer-capture-toggle">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="answerCaptureEnabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">启用答案获取</span>
+                        </div>
+                        <button id="clearAnswersBtn" class="icon-btn" title="清空提取结果">
                             <i class="bi bi-trash"></i>
-                        </button>
-                        <button id="shareAnswerBtn" class="icon-btn">
-                            <i class="bi bi-share"></i>
                         </button>
                     </div>
                 </div>
-                
+
                 <div class="card-container">
                     <!-- 排序选择器 -->
                     <div class="sort-card">
@@ -239,8 +240,13 @@
                                     <span>导入答案</span>
                                 </label>
                                 <input type="file" accept=".json" id="importAnswer" style="display: none;">
-                                
-                                <button id="exportAnswerBtn" class="secondary-btn">
+
+                                <button id="shareAnswerBtn" class="secondary-btn" title="分享答案到服务器">
+                                    <i class="bi bi-share"></i>
+                                    <span>分享答案</span>
+                                </button>
+
+                                <button id="exportAnswerBtn" class="secondary-btn" title="导出答案文件">
                                     <i class="bi bi-download"></i>
                                     <span>导出答案</span>
                                 </button>
@@ -255,19 +261,19 @@
                 <div class="view-header">
                     <h1 class="view-title">规则管理</h1>
                     <div class="view-actions">
-                        <button id="addRuleBtn" class="icon-btn">
+                        <button id="addRuleGroupBtn" class="icon-btn" title="添加规则集">
                             <i class="bi bi-plus"></i>
                         </button>
                     </div>
                 </div>
-                
+
                 <div class="card-container">
                     <div class="rules-card">
                         <div id="rulesContainer" class="rules-container">
                             <div class="no-rules">
-                                <i class="bi bi-folder-plus"></i>
-                                <p>暂无规则配置</p>
-                                <small>点击右上角 + 号添加新规则</small>
+                                <i class="bi bi-collection"></i>
+                                <p>暂无规则集配置</p>
+                                <small>点击上方按钮添加新规则集</small>
                             </div>
                         </div>
                     </div>
@@ -279,12 +285,15 @@
                 <div class="view-header">
                     <h1 class="view-title">社区规则</h1>
                     <div class="view-actions">
+                        <button id="uploadRulesetBtn" class="icon-btn" title="上传规则集到社区">
+                            <i class="bi bi-cloud-upload"></i>
+                        </button>
                         <button id="refreshRulesetsBtn" class="icon-btn">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
                 </div>
-                
+
                 <div class="card-container">
                     <!-- 搜索卡片 -->
                     <div class="search-card">
@@ -294,6 +303,17 @@
                                 <button id="searchRulesetsBtn" class="search-btn">
                                     <i class="bi bi-search"></i>
                                 </button>
+                            </div>
+                            <div class="search-filters">
+                                <select id="sortBySelect" class="form-select">
+                                    <option value="created_at">按创建时间</option>
+                                    <option value="downloads">按下载量</option>
+                                    <option value="name">按名称</option>
+                                </select>
+                                <select id="sortOrderSelect" class="form-select">
+                                    <option value="desc">降序</option>
+                                    <option value="asc">升序</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -307,6 +327,17 @@
                                 </div>
                                 <p>正在加载规则集...</p>
                             </div>
+                        </div>
+                        <div class="pagination-controls" id="paginationControls" style="display: none;">
+                            <button id="prevPageBtn" class="secondary-btn" disabled>
+                                <i class="bi bi-chevron-left"></i>
+                                <span>上一页</span>
+                            </button>
+                            <span id="pageInfo" class="page-info">第 1 页</span>
+                            <button id="nextPageBtn" class="secondary-btn">
+                                <span>下一页</span>
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -322,7 +353,7 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <div class="card-container">
                     <div class="logs-card">
                         <div id="logsContainer" class="logs-container">
@@ -332,12 +363,12 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- 日志统计 -->
                     <div class="stats-card">
                         <div class="card-content">
                             <div class="stats-item">
-                                <i class="bi bi-journal-text"></i>
+                                <i class="bi bi-list-ul"></i>
                                 <span>共 <span id="requestCount">0</span> 条信息</span>
                             </div>
                         </div>
@@ -350,8 +381,27 @@
                 <div class="view-header">
                     <h1 class="view-title">设置</h1>
                 </div>
-                
+
                 <div class="card-container">
+                    <!-- 缓存路径设置 -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3>缓存路径</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="setting-item">
+                                <div class="file-input-group">
+                                    <input type="text" id="cachePathInput" class="form-input" placeholder="选择缓存路径"
+                                        readonly>
+                                    <button id="browseCacheBtn" class="secondary-btn">
+                                        <i class="bi bi-folder"></i>
+                                        <span>浏览</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 代理设置 -->
                     <div class="settings-card">
                         <div class="card-header">
@@ -360,14 +410,16 @@
                         <div class="card-content">
                             <div class="setting-item">
                                 <label for="proxyPortInput">代理端口</label>
-                                <input type="number" id="proxyPortInput" class="form-input" value="5291" min="1024" max="65535">
+                                <input type="number" id="proxyPortInput" class="form-input" value="5291" min="1024"
+                                    max="65535" placeholder="5291">
                             </div>
-                            
+
                             <div class="setting-item">
                                 <label for="bucketPortInput">答案服务器端口</label>
-                                <input type="number" id="bucketPortInput" class="form-input" value="5290" min="1024" max="65535">
+                                <input type="number" id="bucketPortInput" class="form-input" value="5290" min="1024"
+                                    max="65535" placeholder="5290">
                             </div>
-                            
+
                             <div class="setting-item">
                                 <div class="setting-toggle">
                                     <div class="toggle-info">
@@ -392,10 +444,31 @@
                                 <div class="setting-toggle">
                                     <div class="toggle-info">
                                         <span class="toggle-label">保留答案提取缓存文件</span>
-                                        <p class="toggle-description">启用后，答案提取过程中的临时文件将不会被自动删除</p>
+                                        <p class="toggle-description">启用后，答案提取过程中的临时文件将不会被自动删除，便于调试和查看</p>
                                     </div>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="keepCacheFiles">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 更新设置 -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3>更新设置</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="setting-item">
+                                <div class="setting-toggle">
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">启动时自动检查更新</span>
+                                        <p class="toggle-description">启用后，应用启动时会自动检查是否有新版本可用</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoCheckUpdates">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -451,4 +524,5 @@
     <script src="js/index.js"></script>
     <script src="js/mobile-app.js"></script>
 </body>
+
 </html>

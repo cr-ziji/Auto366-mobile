@@ -6,6 +6,18 @@
 // 等待设备准备就绪事件
 document.addEventListener('deviceready', onDeviceReady, false);
 
+// 备用初始化（用于浏览器测试）
+document.addEventListener('DOMContentLoaded', function() {
+    // 如果5秒内没有触发deviceready事件，则直接初始化
+    setTimeout(() => {
+        if (!window.app && typeof Auto366Mobile !== 'undefined') {
+            console.log('Fallback initialization for browser testing');
+            window.app = new Auto366Mobile();
+            window.app.init();
+        }
+    }, 1000);
+});
+
 function onDeviceReady() {
     console.log('Cordova device ready');
     console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
@@ -17,11 +29,15 @@ function onDeviceReady() {
         StatusBar.backgroundColorByHexString('#007bff');
     }
     
-    // 隐藏启动画面
+    // 立即隐藏启动画面
     if (navigator.splashscreen) {
-        setTimeout(() => {
-            navigator.splashscreen.hide();
-        }, 2000);
+        navigator.splashscreen.hide();
+    }
+    
+    // 初始化应用
+    if (typeof Auto366Mobile !== 'undefined') {
+        window.app = new Auto366Mobile();
+        window.app.init();
     }
     
     // 处理返回按钮
