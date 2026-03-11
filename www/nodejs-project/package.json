@@ -1,0 +1,20 @@
+{
+  "name": "nodejs-project",
+  "version": "1.0.0",
+  "description": "create an answer proxy server to get answer and change response",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "cyp",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "form-data": "^4.0.5",
+    "fs-extra": "^11.3.4",
+    "http-mitm-proxy": "^1.1.0",
+    "node-stream-zip": "^1.15.0",
+    "uuid": "^13.0.0"
+  }
+}
