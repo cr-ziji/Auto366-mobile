@@ -16,6 +16,7 @@
     
     <!-- 平台配置 -->
     <platform name="android">
+        <preference name="android-minSdkVersion" value="24" />
         <allow-intent href="market:*" />
         <icon density="ldpi" src="img/icon-36.png" />
         <icon density="mdpi" src="img/icon-48.png" />
