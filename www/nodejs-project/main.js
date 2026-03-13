@@ -1673,4 +1673,168 @@ class AnswerProxy {
       });
     })
   }
+  async shareAnswerFile(filePath) {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return { success: false, error: '文件不存在' };
+      }
+
+      const fileName = path.basename(filePath);
+      const fileExtension = path.extname(fileName);
+      const timestamp = Date.now();
+      const randomId = require('uuid').v4().substring(0, 8);
+      const uniqueFileName = `${timestamp}_${randomId}${fileExtension}`;
+
+      const fileBuffer = fs.readFileSync(filePath);
+
+      const { data, error } = await supabase.storage
+          .from(SUPABASE_BUCKET)
+          .upload(uniqueFileName, fileBuffer, {
+            contentType: 'application/json',
+            upsert: false
+          });
+
+      if (error) {
+        console.error('Supabase 上传错误:', error);
+        return {
+          success: false,
+          error: `上传失败: ${error.message}`
+        };
+      }
+
+      const { data: urlData } = supabase.storage
+          .from(SUPABASE_BUCKET)
+          .getPublicUrl(uniqueFileName);
+
+      if (!urlData || !urlData.publicUrl) {
+        return {
+          success: false,
+          error: '获取下载链接失败'
+        };
+      }
+
+      return {
+        success: true,
+        fileId: data.path,
+        downloadUrl: urlData.publicUrl
+      };
+    } catch (error) {
+      console.error('分享答案文件失败:', error);
+      return {
+        success: false,
+        error: error.message || '上传失败'
+      };
+    }
+  }
 }
+
+const answerProxy = new AnswerProxy()
+// 代理相关
+cordova.channel.on('start-answer-proxy', () => answerProxy.startProxy())
+cordova.channel.on('stop-answer-proxy', () => answerProxy.stopProxy())
+cordova.channel.on('clear-cache', async () => {
+  try {
+    await answerProxy.clearCache()
+    cordova.channel.post('clear-cache-result', 1);
+  } catch (error) {
+    cordova.channel.post('clear-cache-result', 0);
+  }
+})
+cordova.channel.on('download-request-headers', async (uuid) => {
+  try {
+    const result = await answerProxy.downloadRequestHeaders(uuid);
+    cordova.channel.post('download-request-headers-result', result);
+  } catch (error) {
+    cordova.channel.post('download-request-headers-result', { success: false, error: error.message });
+  }
+})
+cordova.channel.on('download-request-body', async (uuid) => {
+  try {
+    const result = await answerProxy.downloadRequestBody(uuid);
+    cordova.channel.post('download-request-body-result', result);
+  } catch (error) {
+    cordova.channel.post('download-request-body-result', { success: false, error: error.message });
+  }
+})
+cordova.channel.on('download-response-headers', async (uuid) => {
+  try {
+    const result = await answerProxy.downloadResponseHeaders(uuid);
+    cordova.channel.post('download-response-headers-result', result);
+  } catch (error) {
+    cordova.channel.post('download-response-headers-result', { success: false, error: error.message });
+  }
+})
+cordova.channel.on('download-response-body', async (uuid) => {
+  try {
+    const result = await answerProxy.downloadResponseBody(uuid);
+    cordova.channel.post('download-response-body-result', result);
+  } catch (error) {
+    cordova.channel.post('download-response-body-result', { success: false, error: error.message });
+  }
+})
+// 答案获取相关
+cordova.channel.on('share-answer-file', async (filePath) => {
+  try {
+    const result = await answerProxy.shareAnswerFile(filePath);
+    cordova.channel.post('share-answer-file-result', result);
+  } catch (error) {
+    cordova.channel.post('share-answer-file-result', {success: false, error: error.message});
+  }
+})
+// 规则集相关
+cordova.channel.on('get-response-rules', async () => {
+  try {
+    const rules = answerProxy.getResponseRules();
+    cordova.channel.post('get-response-rules-result', rules);
+  } catch (error) {
+    cordova.channel.post('get-response-rules-result', { success: false, error: error.message });
+  }
+})
+cordova.channel.on('save-response-rules', async (rules) => {
+  try {
+    const success = answerProxy.saveResponseRules(rules);
+    cordova.channel.post('save-response-rules-result', { success });
+  } catch (error) {
+    cordova.channel.post('save-response-rules-result', { success: false, error: error.message });
+  }
+})
+cordova.channel.on('save-response-rule', async (rule) => {
+  try {
+    const success = answerProxy.saveRule(rule);
+    cordova.channel.post('save-response-rule-result', { success });
+  } catch (error) {
+    cordova.channel.post('save-response-rule-result', { success: false, error: error.message });
+  }
+})
+cordova.channel.on('delete-response-rule', async (ruleId) => {
+  try {
+    const success = answerProxy.deleteRule(ruleId);
+    cordova.channel.post('delete-response-rule-result', { success });
+  } catch (error) {
+    cordova.channel.post('delete-response-rule-result', { success: false, error: error.message });
+  }
+})
+cordova.channel.on('toggle-response-rule', async (data) => {
+  try {
+    const success = answerProxy.toggleRule(data.ruleId, data.enabled);
+    cordova.channel.post('toggle-response-rule-result', { success });
+  } catch (error) {
+    cordova.channel.post('toggle-response-rule-result', { success: false, error: error.message });
+  }
+})
+cordova.channel.on('upload-rules', async (data) => {
+  try {
+    const result = await answerProxy.uploadRules(data.name, data.description, data.author, data.groupRules);
+    cordova.channel.post('upload-rules-result', result);
+  } catch (error) {
+    cordova.channel.post('upload-rules-result', {success: false, error: error.message});
+  }
+})
+cordova.channel.on('download-rule-file', async (url) => {
+  try {
+    const result = await answerProxy.downloadRuleFile(url);
+    cordova.channel.post('download-rule-file-result', result);
+  } catch (error) {
+    cordova.channel.post('download-rule-file-result', {success: false, error: error.message});
+  }
+})
