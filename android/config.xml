@@ -1,30 +1,21 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.auto366.mobile" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+<widget id="com.auto366.mobile" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
     <name>Auto366 Mobile</name>
     <description>
         天学网自动化答题工具移动版 - 解放双手，提高学习效率！
     </description>
-    <author email="cyrilguocode@gmail.com" href="https://github.com/cyrilguocode/Auto366">
-        Cyril Guo
+    <author href="https://366.cyril.qzz.io">
+        Auto366 Team
     </author>
     <content src="index.html" />
-
-    <!-- 网络访问权限 -->
     <allow-intent href="http://*/*" />
     <allow-intent href="https://*/*" />
     <allow-navigation href="*" />
     <access origin="*" />
-
-    <!-- Android 平台配置 -->
     <platform name="android">
-        <!-- SDK 版本设置 -->
-        <preference name="android-minSdkVersion" value="17" />
-        <preference name="android-targetSdkVersion" value="33" />
-
-        <!-- 应用商店相关 -->
+        <preference name="android-minSdkVersion" value="21" />
+        <preference name="android-targetSdkVersion" value="36" />
         <allow-intent href="market:*" />
-
-        <!-- 应用图标 -->
         <icon density="ldpi" src="img/icon-36.png" />
         <icon density="mdpi" src="img/icon-48.png" />
         <icon density="hdpi" src="img/icon-72.png" />
@@ -32,33 +23,21 @@
         <icon density="xxhdpi" src="img/icon-144.png" />
         <icon density="xxxhdpi" src="img/icon-192.png" />
     </platform>
-
-    <!-- 插件配置（使用最新版本） -->
     <plugin name="cordova-plugin-statusbar" spec="4.0.0" />
     <plugin name="cordova-plugin-device" spec="3.0.0" />
     <plugin name="cordova-plugin-file" spec="8.1.3" />
-    <plugin name="cordova-plugin-file-transfer" spec="2.0.0" />
-    <plugin name="cordova-plugin-network-information" spec="3.0.0" />
     <plugin name="cordova-plugin-dialogs" spec="2.0.2" />
-    <plugin name="cordova-plugin-vibration" spec="3.1.1" />
-
-    <!-- 权限设置 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-
-    <!-- 应用设置 -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <preference name="DisallowOverscroll" value="true" />
     <preference name="BackupWebStorage" value="none" />
-
-    <!-- 启动画面设置 -->
     <preference name="SplashScreen" value="none" />
     <preference name="SplashScreenDelay" value="0" />
     <preference name="AutoHideSplashScreen" value="true" />
     <preference name="ShowSplashScreenSpinner" value="false" />
-
-    <!-- 其他意图 -->
     <allow-intent href="tel:*" />
     <allow-intent href="sms:*" />
     <allow-intent href="mailto:*" />

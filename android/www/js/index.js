@@ -1,18 +1,10 @@
-/**
- * Auto366 Mobile - Cordova Device Ready Handler
- * 天学网自动化答题工具移动版
- */
-
-// 等待设备准备就绪事件
 document.addEventListener('deviceready', onDeviceReady, false);
 
-// 备用初始化（用于浏览器测试）
 document.addEventListener('DOMContentLoaded', function() {
-    // 如果5秒内没有触发deviceready事件，则直接初始化
     setTimeout(() => {
-        if (!window.app && typeof Auto366Mobile !== 'undefined') {
-            console.log('Fallback initialization for browser testing');
-            window.app = new Auto366Mobile();
+        if (!window.app) {
+            console.log('Browser fallback init');
+            window.app = new Auto366App();
             window.app.init();
         }
     }, 1000);
@@ -20,132 +12,106 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function onDeviceReady() {
     console.log('Cordova device ready');
-    console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
-    
-    // 设置状态栏
+
     if (window.StatusBar) {
-        StatusBar.styleDefault();
+        StatusBar.styleLightContent();
         StatusBar.overlaysWebView(false);
-        StatusBar.backgroundColorByHexString('#007bff');
+        StatusBar.backgroundColorByHexString('#1976D2');
     }
-    
-    // 立即隐藏启动画面
+
     if (navigator.splashscreen) {
         navigator.splashscreen.hide();
     }
-    
-    // 初始化应用
-    if (typeof Auto366Mobile !== 'undefined') {
-        window.app = new Auto366Mobile();
-        window.app.init();
+
+    if (window.nodejs) {
+        window.nodejs.channel.on('process-result', function(data) {
+            console.log('NodeJS result:', data);
+        });
+        window.nodejs.start('main.js');
+        console.log('Node.js backend started');
     }
-    
-    // 处理返回按钮
+
+    window.app = new Auto366App();
+    window.app.init();
+
     document.addEventListener('backbutton', onBackKeyDown, false);
-    
-    // 处理菜单按钮
-    document.addEventListener('menubutton', onMenuKeyDown, false);
-    
-    // 处理暂停和恢复
     document.addEventListener('pause', onPause, false);
     document.addEventListener('resume', onResume, false);
-    
-    // 网络状态监听
-    document.addEventListener('online', onOnline, false);
-    document.addEventListener('offline', onOffline, false);
-    
-    console.log('Cordova initialization complete');
 }
 
 function onBackKeyDown() {
-    // 如果菜单打开，先关闭菜单
+    if (window.app && window.app.isFloating) {
+        window.app.hideFloatingWindow();
+        return;
+    }
+
     const sideMenu = document.getElementById('sideMenu');
     if (sideMenu && sideMenu.classList.contains('open')) {
-        if (window.app) {
-            window.app.closeMenu();
+        window.app.closeMenu();
+        return;
+    }
+
+    if (window.app && window.app.currentView !== 'home') {
+        window.app.showView('home');
+        return;
+    }
+
+    if (window.app && window.app.isMonitoring) {
+        if (navigator.notification) {
+            navigator.notification.confirm(
+                '监听正在运行，确定要退出吗？',
+                function(buttonIndex) {
+                    if (buttonIndex === 1) {
+                        window.app.stopMonitoring();
+                        navigator.app.exitApp();
+                    }
+                },
+                'Auto366',
+                ['确定退出', '取消']
+            );
+        } else {
+            if (confirm('监听正在运行，确定要退出吗？')) {
+                window.app.stopMonitoring();
+                navigator.app.exitApp();
+            }
         }
         return;
     }
-    
-    // 如果不在主视图，返回主视图
-    if (window.app && window.app.currentView !== 'proxy') {
-        window.app.showView('proxy');
-        return;
-    }
-    
-    // 确认退出应用
+
     if (navigator.notification) {
         navigator.notification.confirm(
-            '确定要退出Auto366吗？',
+            '确定要退出 Auto366 吗？',
             function(buttonIndex) {
-                if (buttonIndex === 1) {
-                    navigator.app.exitApp();
-                }
+                if (buttonIndex === 1) navigator.app.exitApp();
             },
             'Auto366',
             ['确定', '取消']
         );
     } else {
-        if (confirm('确定要退出Auto366吗？')) {
+        if (confirm('确定要退出 Auto366 吗？')) {
             navigator.app.exitApp();
         }
     }
 }
 
-function onMenuKeyDown() {
-    // 切换菜单
-    if (window.app) {
-        window.app.toggleMenu();
-    }
-}
-
 function onPause() {
     console.log('App paused');
-    // 应用暂停时的处理
-    if (window.app) {
-        // 可以在这里保存应用状态
-        window.app.saveSettings();
-    }
 }
 
 function onResume() {
     console.log('App resumed');
-    // 应用恢复时的处理
-    if (window.app) {
-        // 可以在这里恢复应用状态
-        window.app.loadSettings();
-        window.app.updateUI();
-    }
 }
 
-function onOnline() {
-    console.log('Network online');
-    if (window.app) {
-        window.app.showToast('网络已连接', 'success');
-        window.app.addLog('网络已连接', 'success');
-    }
-}
-
-function onOffline() {
-    console.log('Network offline');
-    if (window.app) {
-        window.app.showToast('网络已断开', 'warning');
-        window.app.addLog('网络已断开', 'warning');
-    }
-}
-
-// 全局错误处理
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
     if (window.app && typeof window.app.addLog === 'function') {
-        window.app.addLog(`应用错误: ${e.error.message}`, 'error');
+        window.app.addLog('应用错误: ' + (e.error ? e.error.message : 'Unknown'), 'error');
     }
 });
 
-// 未处理的Promise拒绝
 window.addEventListener('unhandledrejection', function(e) {
-    console.error('Unhandled promise rejection:', e.reason);
+    console.error('Unhandled rejection:', e.reason);
     if (window.app && typeof window.app.addLog === 'function') {
-        window.app.addLog(`Promise错误: ${e.reason}`, 'error');
+        window.app.addLog('Promise错误: ' + e.reason, 'error');
     }
 });
