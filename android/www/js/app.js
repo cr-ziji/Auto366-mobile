@@ -483,6 +483,7 @@ class Auto366App {
 
         this.addLog('初始化完毕，开始监听...', 'success');
         this._updateStatus('monitorStatus', '监听中', 'running');
+        this._updateStatus('dirStatus', '已就绪', 'running');
         this.isMonitoring = true;
         this._updateMonitorBtn('stop');
         document.getElementById('minimizeBtn').style.display = '';
@@ -589,7 +590,10 @@ class Auto366App {
                 if (!this.knownFiles.has(name)) {
                     this.knownFiles.add(name);
                     this.addLog('检测到新文件: ' + name, 'important');
-                    this._processNewEntryNative(entry, name);
+                    if (entry.isDirectory) {
+                        this.addLog('发现新目录: ' + name, 'info');
+                        this._scanNewDirectoryNative(entry);
+                    }
                 }
             }
         } catch (error) {
@@ -622,87 +626,212 @@ class Auto366App {
         });
     }
 
-    async _processNewEntryNative(entry, name) {
-        try {
-            var answers = [];
-            var fullPath = entry.path;
-            var isDirectory = entry.isDirectory;
-            var isFile = entry.isFile;
+    async _scanNewDirectoryNative(entry) {
+        const dirPath = entry.path;
+        const dirName = entry.name;
 
-            if (isDirectory) {
-                this.addLog('扫描目录: ' + name, 'info');
-                if (window.nodejs && window.nodejs.channel) {
-                    answers = await this._processWithNodeJS('process-directory', fullPath);
-                }
-                if (answers.length === 0) {
-                    answers = await this.extractor.scanDirectoryForAnswersNative(fullPath, (msg, type) => this.addLog(msg, type), FlipbookScanner);
-                }
-            } else if (isFile) {
-                var lowerName = name.toLowerCase();
-                if (lowerName.endsWith('.zip')) {
-                    if (window.nodejs && window.nodejs.channel) {
-                        answers = await this._processWithNodeJS('process-zip', fullPath);
-                    } else {
-                        this.addLog('ZIP文件需要Node.js后端支持: ' + name, 'warning');
-                    }
-                    if (answers.length === 0) return;
-                } else {
-                    var isRelevant = lowerName.endsWith('.json') || lowerName.endsWith('.js') ||
-                        lowerName.endsWith('.xml') || lowerName.endsWith('.txt') || lowerName.endsWith('.u3enc');
-                    if (isRelevant) {
-                        var fileData = await this._readFileNative(fullPath);
-                        if (fileData && fileData.content) {
-                            answers = await this.extractor.processFileContent(fileData.content, lowerName);
+        try {
+            this.addLog('扫描目录: ' + dirName, 'info');
+            const u3encFiles = [];
+            const otherFiles = [];
+
+            await this._collectFilesFromDir(dirPath, u3encFiles, otherFiles, '', FlipbookScanner);
+
+            let allAnswers = [];
+            let page1Count = 0;
+            let dirCount = 0;
+
+            if (u3encFiles.length > 0) {
+                this.addLog('找到 ' + u3encFiles.length + ' 个 u3enc 文件', 'info');
+                for (const file of u3encFiles) {
+                    try {
+                        var fileData = await new Promise((resolve) => {
+                            FlipbookScanner.readFile(file.path, (result) => resolve(result), () => resolve(null));
+                        });
+                        if (!fileData || !fileData.content) continue;
+
+                        var jsonStr = this.extractor._extractJsonFromPageConfig(fileData.content);
+                        if (jsonStr) {
+                            var pageConfig = JSON.parse(jsonStr);
+                            var fileAnswers = this.extractor._extractFromPage1(pageConfig);
+                            allAnswers.push(...fileAnswers.map(a => ({
+                                ...a,
+                                source: dirName,
+                                timestamp: Date.now()
+                            })));
+                            page1Count += fileAnswers.length;
+                            this.addLog(file.relativePath + ': 提取 ' + fileAnswers.length + ' 个答案', 'success');
                         }
-                    } else {
-                        this.addLog('跳过不相关文件: ' + name, 'info');
-                        return;
+                    } catch (error) {
+                        this.addLog(file.relativePath + ': 处理失败', 'error');
                     }
                 }
             }
 
-            if (answers.length > 0) {
-                this.addLog('从 ' + name + ' 提取到 ' + answers.length + ' 个答案', 'success');
-                this.answers.push(...answers.map(a => ({
-                    ...a,
-                    source: name,
-                    timestamp: Date.now()
-                })));
+            for (const file of otherFiles) {
+                const name = file.name.toLowerCase();
+                if (!name.endsWith('.json') && !name.endsWith('.js') && !name.endsWith('.xml') && !name.endsWith('.txt')) continue;
+                try {
+                    var fileData = await new Promise((resolve) => {
+                        FlipbookScanner.readFile(file.path, (result) => resolve(result), () => resolve(null));
+                    });
+                    if (!fileData || !fileData.content) continue;
+                    var fileAnswers = await this.extractor.processFileContent(fileData.content, name);
+                    if (fileAnswers.length > 0) {
+                        allAnswers.push(...fileAnswers.map(a => ({
+                            ...a,
+                            source: dirName,
+                            timestamp: Date.now()
+                        })));
+                        dirCount += fileAnswers.length;
+                        this.addLog(file.relativePath + ': ' + fileAnswers.length + ' 个答案', 'success');
+                    }
+                } catch (error) {
+                    this.addLog(file.relativePath + ': 处理失败', 'error');
+                }
+            }
+
+            if (allAnswers.length > 0) {
+                let sourceMode;
+                if (page1Count > 0 && dirCount > 0) {
+                    sourceMode = 'mixed';
+                } else if (page1Count > 0) {
+                    sourceMode = 'page1';
+                } else if (dirCount > 0) {
+                    sourceMode = 'fallback';
+                } else {
+                    sourceMode = 'none';
+                }
+
+                var finalAnswers = this.extractor._sortAndDeduplicateAnswers(allAnswers, sourceMode);
+
+                this.addLog('从 ' + dirName + ' 提取到 ' + finalAnswers.length + ' 个答案 (来源: ' + sourceMode + ')', 'success');
+                this.answers.push(...finalAnswers);
                 this._updateStatus('answerCount', String(this.answers.length), 'running');
                 this._renderAnswers();
                 this._updateFloatingWindow();
                 this.showNotification('answer');
             } else {
-                this.addLog(name + ' 中未找到答案', 'warning');
+                this.addLog(dirName + ' 中未找到答案', 'warning');
             }
         } catch (error) {
-            this.addLog('处理 ' + name + ' 失败: ' + error.message, 'error');
+            this.addLog('扫描 ' + dirName + ' 失败: ' + error.message, 'error');
         }
     }
 
-    _processWithNodeJS(action, filePath) {
+    async _collectFilesFromDir(dirPath, u3encFiles, otherFiles, relativePath, scanner) {
         return new Promise((resolve) => {
-            if (!window.nodejs || !window.nodejs.channel) {
-                resolve([]);
-                return;
-            }
-            const timeout = setTimeout(() => {
-                resolve([]);
-            }, 30000);
-            const handler = (data) => {
-                if (data.source === filePath || data.source === action) {
-                    clearTimeout(timeout);
-                    window.nodejs.channel.removeListener('process-result', handler);
-                    if (data.success && data.answers) {
-                        resolve(data.answers);
-                    } else {
-                        resolve([]);
+            scanner.listFiles(dirPath, (entries) => {
+                if (!entries) {
+                    resolve();
+                    return;
+                }
+                var promises = [];
+                for (const entry of entries) {
+                    const name = entry.name;
+                    const entryPath = entry.path;
+                    const relPath = relativePath ? relativePath + '/' + name : name;
+
+                    if (entry.isDirectory) {
+                        promises.push(this._collectFilesFromDir(entryPath, u3encFiles, otherFiles, relPath, scanner));
+                    } else if (entry.isFile) {
+                        if (name.toLowerCase().endsWith('.u3enc')) {
+                            u3encFiles.push({ name, path: entryPath, relativePath: relPath });
+                        } else {
+                            otherFiles.push({ name, path: entryPath, relativePath: relPath });
+                        }
                     }
                 }
-            };
-            window.nodejs.channel.on('process-result', handler);
-            window.nodejs.channel.post(action, filePath);
+                Promise.all(promises).then(() => resolve());
+            }, () => resolve());
         });
+    }
+
+    async _processNewEntryNative(entry, name) {
+        const dirPath = entry.path;
+        this.addLog('扫描目录: ' + name, 'info');
+        const u3encFiles = [];
+        const otherFiles = [];
+
+        await this._collectFilesFromDir(dirPath, u3encFiles, otherFiles, '', FlipbookScanner);
+
+        let allAnswers = [];
+        let page1Count = 0;
+        let dirCount = 0;
+
+        if (u3encFiles.length > 0) {
+            this.addLog('找到 ' + u3encFiles.length + ' 个 u3enc 文件', 'info');
+            for (const file of u3encFiles) {
+                try {
+                    var fileData = await new Promise((resolve) => {
+                        FlipbookScanner.readFile(file.path, (result) => resolve(result), () => resolve(null));
+                    });
+                    if (!fileData || !fileData.content) continue;
+
+                    var jsonStr = this.extractor._extractJsonFromPageConfig(fileData.content);
+                    if (jsonStr) {
+                        var pageConfig = JSON.parse(jsonStr);
+                        var fileAnswers = this.extractor._extractFromPage1(pageConfig);
+                        allAnswers.push(...fileAnswers.map(a => ({
+                            ...a,
+                            source: name,
+                            timestamp: Date.now()
+                        })));
+                        page1Count += fileAnswers.length;
+                        this.addLog(file.relativePath + ': 提取 ' + fileAnswers.length + ' 个答案', 'success');
+                    }
+                } catch (error) {
+                    this.addLog(file.relativePath + ': 处理失败', 'error');
+                }
+            }
+        }
+
+        for (const file of otherFiles) {
+            const fileName = file.name.toLowerCase();
+            if (!fileName.endsWith('.json') && !fileName.endsWith('.js') && !fileName.endsWith('.xml') && !fileName.endsWith('.txt')) continue;
+            try {
+                var fileData = await new Promise((resolve) => {
+                    FlipbookScanner.readFile(file.path, (result) => resolve(result), () => resolve(null));
+                });
+                if (!fileData || !fileData.content) continue;
+                var fileAnswers = await this.extractor.processFileContent(fileData.content, fileName);
+                if (fileAnswers.length > 0) {
+                    allAnswers.push(...fileAnswers.map(a => ({
+                        ...a,
+                        source: name,
+                        timestamp: Date.now()
+                    })));
+                    dirCount += fileAnswers.length;
+                    this.addLog(file.relativePath + ': ' + fileAnswers.length + ' 个答案', 'success');
+                }
+            } catch (error) {
+                this.addLog(file.relativePath + ': 处理失败', 'error');
+            }
+        }
+
+        if (allAnswers.length > 0) {
+            let sourceMode;
+            if (page1Count > 0 && dirCount > 0) {
+                sourceMode = 'mixed';
+            } else if (page1Count > 0) {
+                sourceMode = 'page1';
+            } else if (dirCount > 0) {
+                sourceMode = 'fallback';
+            } else {
+                sourceMode = 'none';
+            }
+
+            var finalAnswers = this.extractor._sortAndDeduplicateAnswers(allAnswers, sourceMode);
+
+            this.addLog('从 ' + name + ' 提取到 ' + finalAnswers.length + ' 个答案 (来源: ' + sourceMode + ')', 'success');
+            this.answers.push(...finalAnswers);
+            this._updateStatus('answerCount', String(this.answers.length), 'running');
+            this._renderAnswers();
+            this._updateFloatingWindow();
+            this.showNotification('answer');
+        } else {
+            this.addLog(name + ' 中未找到答案', 'warning');
+        }
     }
 
     showFloatingWindow() {

@@ -17,7 +17,7 @@ class AnswerExtractor {
             .trim();
     }
 
-    extractJsonFromPageConfig(content) {
+    _extractJsonFromPageConfig(content) {
         const match = content.match(/var\s+pageConfig\s*=\s*(\{[\s\S]*\})\s*;?\s*$/);
         if (match && match[1]) return match[1];
         const startIndex = content.indexOf('{');
@@ -28,14 +28,33 @@ class AnswerExtractor {
         return null;
     }
 
-    extractFromPage1(pageConfig) {
+    _extractMediaIndexFromContent(content) {
+        try {
+            const match = content.match(/media\/(?:[A-Za-z0-9]+-)?([TAQ])?(\d+)(?:\.(\d+))?(?:-[^.]*)?\.mp3/i);
+            if (match && match[2]) {
+                const prefix = match[1] ? match[1].toUpperCase() : 'T';
+                const mainIndex = parseInt(match[2]);
+                const subIndex = match[3] ? parseInt(match[3]) : 0;
+                const prefixPriority = { 'T': 1, 'A': 2, 'Q': 3 };
+                return (prefixPriority[prefix] || 1) * 10000 + mainIndex * 10 + subIndex;
+            }
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    _extractFromPage1(pageConfig) {
         const answers = [];
         try {
             if (!pageConfig || !pageConfig.slides) return answers;
+
             for (const slide of pageConfig.slides) {
                 const questionList = slide.questionList || [];
                 for (const question of questionList) {
                     const qtypeId = question.qtype_id;
+                    const mediaIndex = this._extractMediaIndexFromContent(question.media?.file || '');
+
                     if (question.answer_text && question.options && question.options.length > 0) {
                         const correctOption = question.options.find(opt => opt.id === question.answer_text);
                         if (correctOption) {
@@ -44,10 +63,14 @@ class AnswerExtractor {
                             answers.push({
                                 question: questionText || '未知问题',
                                 answer: `${question.answer_text}. ${answerContent}`,
-                                pattern: '听后选择'
+                                content: `请回答: ${question.answer_text}. ${answerContent}`,
+                                questionText: questionText,
+                                pattern: '听后选择',
+                                mediaIndex: mediaIndex
                             });
                         }
                     }
+
                     if (question.questions_list && question.questions_list.length > 0) {
                         for (const q of question.questions_list) {
                             if (q.answer_text && q.options && q.options.length > 0) {
@@ -58,34 +81,48 @@ class AnswerExtractor {
                                     answers.push({
                                         question: questionText || '未知问题',
                                         answer: `${q.answer_text}. ${answerContent}`,
-                                        pattern: '听后选择-嵌套'
+                                        content: `请回答: ${q.answer_text}. ${answerContent}`,
+                                        questionText: questionText,
+                                        pattern: '听后选择-嵌套',
+                                        mediaIndex: this._extractMediaIndexFromContent(q.media?.file || '')
                                     });
                                 }
                             }
                         }
                     }
+
                     if (qtypeId === 237 && question.record_speak && question.record_speak.length > 0) {
                         const correctAnswers = question.record_speak.filter(item => item.work === "1" && item.show === "1");
                         for (const item of correctAnswers) {
                             if (item.content && item.content.trim()) {
+                                const questionText = this.cleanHtmlText(question.question_text || '口语跟读');
+                                const answerContent = this.cleanHtmlText(item.content.trim());
                                 answers.push({
-                                    question: this.cleanHtmlText(question.question_text || '口语跟读'),
-                                    answer: this.cleanHtmlText(item.content.trim()),
-                                    pattern: '口语跟读'
+                                    question: questionText,
+                                    answer: answerContent,
+                                    content: `请回答: ${answerContent}`,
+                                    questionText: questionText,
+                                    pattern: '口语跟读',
+                                    mediaIndex: mediaIndex
                                 });
                             }
                         }
                     }
+
                     if (qtypeId === 449 && question.analysis && question.analysis.trim()) {
                         const analysisText = this.cleanHtmlText(question.analysis).trim();
                         if (analysisText) {
                             answers.push({
                                 question: '朗读文本',
                                 answer: analysisText,
-                                pattern: '朗读'
+                                content: `请朗读: ${analysisText}`,
+                                questionText: analysisText.substring(0, 50) + (analysisText.length > 50 ? '...' : ''),
+                                pattern: '朗读',
+                                mediaIndex: mediaIndex
                             });
                         }
                     }
+
                     if (qtypeId === 554 && question.analysis && question.analysis.trim()) {
                         let analysisText = question.analysis
                             .replace(/<p[^>]*>答案[一二三四五六七八九十]+：<\/p>/g, '')
@@ -94,13 +131,18 @@ class AnswerExtractor {
                         analysisText = analysisText.replace(/\s+/g, ' ').trim();
                         if (analysisText) {
                             const firstAnswer = analysisText.split(/\s*答案[一二三四五六七八九十]+：\s*/)[0] || analysisText;
+                            const questionText = this.cleanHtmlText(question.question_text || '故事复述');
                             answers.push({
-                                question: this.cleanHtmlText(question.question_text || '故事复述'),
+                                question: questionText,
                                 answer: firstAnswer.trim(),
-                                pattern: '故事复述'
+                                content: `请复述: ${firstAnswer.trim()}`,
+                                questionText: questionText,
+                                pattern: '故事复述',
+                                mediaIndex: mediaIndex
                             });
                         }
                     }
+
                     if (qtypeId === 503) {
                         if (question.analysis && question.analysis.trim()) {
                             const analysisText = this.cleanHtmlText(question.analysis).trim();
@@ -108,7 +150,10 @@ class AnswerExtractor {
                                 answers.push({
                                     question: this.cleanHtmlText(question.question_text || '听力填空'),
                                     answer: analysisText,
-                                    pattern: '听力填空'
+                                    content: `请回答: ${analysisText}`,
+                                    questionText: this.cleanHtmlText(question.question_text || '听力填空'),
+                                    pattern: '听力填空',
+                                    mediaIndex: mediaIndex
                                 });
                             }
                         } else if (question.record_follow_read?.paragraph_list) {
@@ -121,7 +166,10 @@ class AnswerExtractor {
                                             answers.push({
                                                 question: `问题 ${sent.keyNo}`,
                                                 answer: answerText.trim(),
-                                                pattern: '听力填空'
+                                                content: `请回答: ${answerText.trim()}`,
+                                                questionText: answerText.trim(),
+                                                pattern: '听力填空',
+                                                mediaIndex: mediaIndex
                                             });
                                         }
                                     }
@@ -138,13 +186,39 @@ class AnswerExtractor {
         }
     }
 
-    detectExactType(questionObj) {
+    _sortAndDeduplicateAnswers(answers, sourceMode = 'page1') {
+        if (!answers || answers.length === 0) return answers;
+
+        let sortedAnswers;
+        if (sourceMode === 'page1' || sourceMode === 'mixed') {
+            sortedAnswers = [...answers];
+        } else {
+            sortedAnswers = [...answers].sort((a, b) => {
+                const indexA = a.mediaIndex !== undefined && a.mediaIndex !== null ? a.mediaIndex : Infinity;
+                const indexB = b.mediaIndex !== undefined && b.mediaIndex !== null ? b.mediaIndex : Infinity;
+                return indexA - indexB;
+            });
+        }
+
+        const seen = new Map();
+        const deduplicated = [];
+        for (const ans of sortedAnswers) {
+            const key = `${ans.questionText || ans.question}|${ans.answer}`;
+            if (!seen.has(key)) {
+                seen.set(key, true);
+                deduplicated.push(ans);
+            }
+        }
+        return deduplicated;
+    }
+
+    _detectExactType(questionObj) {
         if ((questionObj.questions_list && questionObj.questions_list.length > 0 &&
             questionObj.questions_list[0].options && questionObj.questions_list[0].options.length > 0) ||
             (questionObj.options && questionObj.options.length > 0 && questionObj.answer_text)) {
             return '听后选择';
         }
-        if (this.hasAnswerAttributes(questionObj)) return '听后回答';
+        if (this._hasAnswerAttributes(questionObj)) return '听后回答';
         if (questionObj.record_speak && questionObj.record_speak.length > 0) {
             const firstItem = questionObj.record_speak[0];
             if (firstItem && !firstItem.work && !firstItem.show &&
@@ -159,7 +233,7 @@ class AnswerExtractor {
         return '未知';
     }
 
-    hasAnswerAttributes(questionObj) {
+    _hasAnswerAttributes(questionObj) {
         if (questionObj.record_speak && questionObj.record_speak.length > 0) {
             const firstItem = questionObj.record_speak[0];
             if (firstItem && (firstItem.work === "1" || firstItem.work === 1 ||
@@ -177,7 +251,7 @@ class AnswerExtractor {
         return false;
     }
 
-    parseChoiceQuestions(questionObj) {
+    _parseChoiceQuestions(questionObj, mediaIndex) {
         const results = [];
         if (questionObj.questions_list) {
             questionObj.questions_list.forEach((question, index) => {
@@ -187,7 +261,10 @@ class AnswerExtractor {
                         results.push({
                             question: `第${index + 1}题: ${question.question_text || '未知问题'}`,
                             answer: `${question.answer_text}. ${correctOption.content?.trim() || ''}`,
-                            pattern: '听后选择'
+                            content: `请回答: ${question.answer_text}. ${correctOption.content?.trim() || ''}`,
+                            questionText: question.question_text || '',
+                            pattern: '听后选择',
+                            mediaIndex: mediaIndex
                         });
                     }
                 }
@@ -196,17 +273,21 @@ class AnswerExtractor {
         if (results.length === 0 && questionObj.options && questionObj.options.length > 0 && questionObj.answer_text) {
             const correctOption = questionObj.options.find(opt => opt.id === questionObj.answer_text);
             if (correctOption) {
+                const cleanQuestionText = this.cleanHtmlText(questionObj.question_text || '未知问题');
                 results.push({
-                    question: `第1题: ${this.cleanHtmlText(questionObj.question_text || '未知问题')}`,
+                    question: `第1题: ${cleanQuestionText}`,
                     answer: `${questionObj.answer_text}. ${correctOption.content?.trim() || ''}`,
-                    pattern: '听后选择'
+                    content: `请回答: ${questionObj.answer_text}. ${correctOption.content?.trim() || ''}`,
+                    questionText: cleanQuestionText,
+                    pattern: '听后选择',
+                    mediaIndex: mediaIndex
                 });
             }
         }
         return results;
     }
 
-    parseAnswerQuestions(questionObj) {
+    _parseAnswerQuestions(questionObj, mediaIndex) {
         const results = [];
         if (questionObj.questions_list) {
             questionObj.questions_list.forEach((question, qIndex) => {
@@ -215,13 +296,23 @@ class AnswerExtractor {
                         .filter(item => item.show === "1" || item.show === 1)
                         .map(item => item.content?.trim() || '')
                         .filter(content => content && content !== '<answers/>');
+                    let messageInfo = {
+                        question: `第${qIndex + 1}题`,
+                        answer: question.question_text || '未知',
+                        content: `点击展开全部回答`,
+                        pattern: '听后回答',
+                        mediaIndex: mediaIndex,
+                        children: []
+                    };
                     answers.forEach((answer, aIndex) => {
-                        results.push({
-                            question: `第${qIndex + 1}题 - 答案${aIndex + 1}`,
+                        messageInfo.children.push({
+                            question: `第${aIndex + 1}个答案`,
                             answer: answer,
+                            content: `请回答: ${answer}`,
                             pattern: '听后回答'
                         });
                     });
+                    results.push(messageInfo);
                 }
             });
         }
@@ -230,35 +321,49 @@ class AnswerExtractor {
                 .filter(item => item.show === "1" || item.show === 1)
                 .map(item => item.content?.trim() || '')
                 .filter(content => content && content !== '<answers/>');
+            let messageInfo = {
+                question: `第1题`,
+                answer: questionObj.question_text || '未知',
+                content: `点击展开全部回答`,
+                pattern: '听后回答',
+                mediaIndex: mediaIndex,
+                children: []
+            };
             answers.forEach((answer, index) => {
-                results.push({
-                    question: `第1题 - 答案${index + 1}`,
+                messageInfo.children.push({
+                    question: `第${index + 1}个答案`,
                     answer: answer,
+                    content: `请回答: ${answer}`,
                     pattern: '听后回答'
                 });
             });
+            results.push(messageInfo);
         }
         return results;
     }
 
-    parseRetellContent(questionObj) {
+    _parseRetellContent(questionObj, mediaIndex) {
         const results = [];
         if (questionObj.record_speak && questionObj.record_speak.length > 0) {
             const items = questionObj.record_speak
                 .filter(item => item.content && item.content.length > 100)
                 .map(item => this.cleanHtmlText(item.content));
             if (items.length > 0) {
+                const fullContent = items.join('\n\n');
                 results.push({
                     question: '转述内容',
-                    answer: items.join('\n\n'),
-                    pattern: '听后转述'
+                    answer: fullContent,
+                    content: `请转述: ${fullContent.substring(0, 100)}...`,
+                    questionText: '请根据听力内容进行转述',
+                    pattern: '听后转述',
+                    mediaIndex: mediaIndex
                 });
             }
         }
         return results;
     }
 
-    parseReadingContent(questionObj) {
+    _parseReadingContent(questionObj, mediaIndex) {
         const results = [];
         if (questionObj.record_follow_read) {
             const content = this.cleanHtmlText(questionObj.record_follow_read);
@@ -266,7 +371,10 @@ class AnswerExtractor {
                 results.push({
                     question: '朗读短文',
                     answer: content,
-                    pattern: '朗读短文'
+                    content: `请朗读: ${content}`,
+                    questionText: '请朗读以下短文',
+                    pattern: '朗读短文',
+                    mediaIndex: mediaIndex
                 });
             }
         }
@@ -276,20 +384,26 @@ class AnswerExtractor {
                 results.push({
                     question: '朗读短文',
                     answer: content.replace(/\/\//g, '，'),
-                    pattern: '朗读短文'
+                    content: `请朗读: ${content.replace(/\/\//g, '，')}`,
+                    questionText: '请朗读以下短文',
+                    pattern: '朗读短文',
+                    mediaIndex: mediaIndex
                 });
             }
         }
         return results;
     }
 
-    parseFallback(questionObj) {
+    _parseFallback(questionObj, mediaIndex) {
         const results = [];
         if (questionObj.answer_text) {
             results.push({
                 question: '问题',
                 answer: questionObj.answer_text,
-                pattern: '未知题型'
+                content: `答案: ${questionObj.answer_text}`,
+                questionText: questionObj.answer_text,
+                pattern: '未知题型',
+                mediaIndex: mediaIndex
             });
         }
         if (questionObj.record_speak && questionObj.record_speak.length > 0) {
@@ -298,7 +412,10 @@ class AnswerExtractor {
                     results.push({
                         question: `第${index + 1}项`,
                         answer: this.cleanHtmlText(item.content),
-                        pattern: '未知题型'
+                        content: `请回答: ${this.cleanHtmlText(item.content)}`,
+                        questionText: this.cleanHtmlText(item.content),
+                        pattern: '未知题型',
+                        mediaIndex: mediaIndex
                     });
                 }
             });
@@ -306,17 +423,17 @@ class AnswerExtractor {
         return results;
     }
 
-    parseQuestionFile(fileContent) {
+    _parseQuestionFile(fileContent, mediaIndex) {
         try {
             const config = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
             const questionObj = config.questionObj || {};
-            const detectedType = this.detectExactType(questionObj);
+            const detectedType = this._detectExactType(questionObj);
             switch (detectedType) {
-                case '听后选择': return this.parseChoiceQuestions(questionObj);
-                case '听后回答': return this.parseAnswerQuestions(questionObj);
-                case '听后转述': return this.parseRetellContent(questionObj);
-                case '朗读短文': return this.parseReadingContent(questionObj);
-                default: return this.parseFallback(questionObj);
+                case '听后选择': return this._parseChoiceQuestions(questionObj, mediaIndex);
+                case '听后回答': return this._parseAnswerQuestions(questionObj, mediaIndex);
+                case '听后转述': return this._parseRetellContent(questionObj, mediaIndex);
+                case '朗读短文': return this._parseReadingContent(questionObj, mediaIndex);
+                default: return this._parseFallback(questionObj, mediaIndex);
             }
         } catch (error) {
             return [];
@@ -325,41 +442,68 @@ class AnswerExtractor {
 
     extractFromJSON(content) {
         const answers = [];
+        const mediaIndex = this._extractMediaIndexFromContent(content);
         try {
             let jsonData;
             try { jsonData = JSON.parse(content); } catch (e) { return []; }
+
             if (jsonData.Data && jsonData.Data.sentences) {
                 jsonData.Data.sentences.forEach((sentence, index) => {
                     if (sentence.text && sentence.text.length > 2) {
-                        answers.push({ question: `第${index + 1}题`, answer: sentence.text, pattern: '句子跟读' });
+                        answers.push({
+                            question: `第${index + 1}题`,
+                            answer: sentence.text,
+                            content: `请朗读: ${sentence.text}`,
+                            questionText: `请朗读: ${sentence.text}`,
+                            pattern: 'JSON句子跟读',
+                            mediaIndex: mediaIndex
+                        });
                     }
                 });
             }
             if (jsonData.Data && jsonData.Data.words) {
                 jsonData.Data.words.forEach((word, index) => {
                     if (word && word.length > 1) {
-                        answers.push({ question: `第${index + 1}题`, answer: word, pattern: '单词发音' });
+                        answers.push({
+                            question: `第${index + 1}题`,
+                            answer: word,
+                            content: `请朗读单词: ${word}`,
+                            questionText: `请朗读单词: ${word}`,
+                            pattern: 'JSON单词发音',
+                            mediaIndex: mediaIndex
+                        });
                     }
                 });
             }
             if (jsonData.questionObj) {
-                answers.push(...this.parseQuestionFile(jsonData));
+                answers.push(...this._parseQuestionFile(jsonData, mediaIndex));
             }
             if (Array.isArray(jsonData.answers)) {
                 jsonData.answers.forEach((answer, index) => {
                     if (answer && (typeof answer === 'string' || (typeof answer === 'object' && answer.content))) {
                         const answerText = typeof answer === 'string' ? answer : (answer.content || answer.answer || '');
-                        answers.push({ question: `第${index + 1}题`, answer: answerText, pattern: '答案数组' });
+                        answers.push({
+                            question: `第${index + 1}题`,
+                            answer: answerText,
+                            content: answerText,
+                            questionText: answerText,
+                            pattern: 'JSON答案数组',
+                            mediaIndex: mediaIndex
+                        });
                     }
                 });
             }
             if (jsonData.questions) {
                 jsonData.questions.forEach((question, index) => {
                     if (question && question.answer) {
+                        const questionText = question.question || `第${index + 1}题`;
                         answers.push({
-                            question: question.question || `第${index + 1}题`,
+                            question: questionText,
                             answer: question.answer,
-                            pattern: '题目模式'
+                            content: `题目: ${questionText}\n答案: ${question.answer}`,
+                            questionText: questionText,
+                            pattern: 'JSON题目模式',
+                            mediaIndex: mediaIndex
                         });
                     }
                 });
@@ -372,7 +516,8 @@ class AnswerExtractor {
         try {
             let jsonData;
             try { jsonData = JSON.parse(content); } catch (e) { return []; }
-            return this.parseQuestionFile(jsonData);
+            const mediaIndex = this._extractMediaIndexFromContent(content);
+            return this._parseQuestionFile(jsonData, mediaIndex);
         } catch (error) {
             return [];
         }
@@ -397,8 +542,19 @@ class AnswerExtractor {
                         answers.push({
                             question: `第${index + 1}题`,
                             answer: answersMatch[1].trim(),
+                            content: analysisText ? `解析: ${analysisText}\n答案: ${answersMatch[1].trim()}` : `答案: ${answersMatch[1].trim()}`,
+                            questionText: answersMatch[1].trim(),
                             pattern: 'XML正确答案',
-                            elementId
+                            elementId: elementId
+                        });
+                    } else if (analysisText) {
+                        answers.push({
+                            question: `第${index + 1}题`,
+                            answer: analysisText,
+                            content: `解析: ${analysisText}`,
+                            questionText: analysisText,
+                            pattern: 'XML正确答案',
+                            elementId: elementId
                         });
                     } else {
                         const answerMatches = [...elementContent.matchAll(/<answer[^>]*>\s*<!\[CDATA\[([^\]]+)]]>\s*<\/answer>/g)];
@@ -407,8 +563,10 @@ class AnswerExtractor {
                             answers.push({
                                 question: `第${index + 1}题`,
                                 answer: allAnswers.join(' / '),
+                                content: `答案: ${allAnswers.join(' / ')}`,
+                                questionText: allAnswers.join(' / '),
                                 pattern: 'XML正确答案',
-                                elementId
+                                elementId: elementId
                             });
                         }
                     }
@@ -429,10 +587,12 @@ class AnswerExtractor {
                         answers.push({
                             question: `第${questionNo}题`,
                             answer: questionText,
+                            content: `题目: ${questionText}`,
+                            questionText: questionText,
                             pattern: options.length > 0 ? 'XML题目选项' : 'XML题目',
-                            elementId,
-                            questionNo,
-                            options
+                            elementId: elementId,
+                            questionNo: questionNo,
+                            options: options
                         });
                     }
                 });
@@ -461,6 +621,8 @@ class AnswerExtractor {
                             answers.push({
                                 question: `文本-${lineNum + 1}`,
                                 answer: match[1].trim(),
+                                content: `答案: ${match[1].trim()}`,
+                                questionText: match[1].trim(),
                                 pattern: '文本答案'
                             });
                         }
@@ -469,156 +631,6 @@ class AnswerExtractor {
             });
         } catch (error) { return []; }
         return answers;
-    }
-
-    async processU3encFile(fileEntry, dirPath) {
-        const answers = [];
-        try {
-            const content = await this.readFileEntry(fileEntry);
-            const encryptedData = new Uint8Array(content);
-            const decryptedData = await this.cryptoManager.decryptU3enc(encryptedData);
-            if (!decryptedData) return [];
-            const text = this.cryptoManager.arrayBufferToString(decryptedData);
-            const jsonStr = this.extractJsonFromPageConfig(text);
-            if (jsonStr) {
-                const pageConfig = JSON.parse(jsonStr);
-                return this.extractFromPage1(pageConfig);
-            }
-        } catch (error) {
-            console.error('processU3encFile failed:', error);
-        }
-        return answers;
-    }
-
-    async processFile(fileEntry) {
-        const answers = [];
-        const fileName = fileEntry.name.toLowerCase();
-        try {
-            const content = await this.readFileEntryText(fileEntry);
-            if (fileName.endsWith('.json')) {
-                return this.extractFromJSON(content);
-            } else if (fileName.endsWith('.js')) {
-                if (fileName.endsWith('.u3enc')) {
-                    const encContent = await this.readFileEntry(fileEntry);
-                    const encryptedData = new Uint8Array(encContent);
-                    const decryptedData = await this.cryptoManager.decryptU3enc(encryptedData);
-                    if (decryptedData) {
-                        const text = this.cryptoManager.arrayBufferToString(decryptedData);
-                        const jsonStr = this.extractJsonFromPageConfig(text);
-                        if (jsonStr) {
-                            try {
-                                const pageConfig = JSON.parse(jsonStr);
-                                return this.extractFromPage1(pageConfig);
-                            } catch (e) {}
-                        }
-                    }
-                    return [];
-                }
-                return this.extractFromJS(content);
-            } else if (fileName.endsWith('.xml')) {
-                return this.extractFromXML(content, fileEntry.name);
-            } else if (fileName.endsWith('.txt')) {
-                return this.extractFromText(content);
-            }
-        } catch (error) {
-            console.error('processFile failed:', error);
-        }
-        return answers;
-    }
-
-    async scanDirectoryForAnswers(dirEntry, logCallback) {
-        const allAnswers = [];
-        const processedFiles = [];
-        const u3encFiles = [];
-        const otherFiles = [];
-
-        await this._collectFiles(dirEntry, u3encFiles, otherFiles, '');
-
-        if (u3encFiles.length > 0 && logCallback) {
-            logCallback(`找到 ${u3encFiles.length} 个 u3enc 文件`, 'info');
-        }
-
-        for (const file of u3encFiles) {
-            try {
-                const fileAnswers = await this.processFile(file.entry);
-                if (fileAnswers.length > 0) {
-                    allAnswers.push(...fileAnswers.map(a => ({ ...a, sourceFile: file.relativePath })));
-                    processedFiles.push({ file: file.relativePath, count: fileAnswers.length });
-                    if (logCallback) logCallback(`${file.relativePath}: ${fileAnswers.length} 个答案`, 'success');
-                }
-            } catch (error) {
-                if (logCallback) logCallback(`${file.relativePath}: 处理失败`, 'error');
-            }
-        }
-
-        for (const file of otherFiles) {
-            const name = file.entry.name.toLowerCase();
-            if (!name.endsWith('.json') && !name.endsWith('.js') && !name.endsWith('.xml') && !name.endsWith('.txt')) continue;
-            if (!name.includes('answer') && !name.includes('paper') && !name.includes('question') && !name.includes('questiondata')) continue;
-            try {
-                const fileAnswers = await this.processFile(file.entry);
-                if (fileAnswers.length > 0) {
-                    allAnswers.push(...fileAnswers.map(a => ({ ...a, sourceFile: file.relativePath })));
-                    processedFiles.push({ file: file.relativePath, count: fileAnswers.length });
-                    if (logCallback) logCallback(`${file.relativePath}: ${fileAnswers.length} 个答案`, 'success');
-                }
-            } catch (error) {
-                if (logCallback) logCallback(`${file.relativePath}: 处理失败`, 'error');
-            }
-        }
-
-        return this.deduplicateAnswers(allAnswers);
-    }
-
-    async _collectFiles(dirEntry, u3encFiles, otherFiles, basePath) {
-        const reader = dirEntry.createReader();
-        const entries = await new Promise((resolve, reject) => {
-            reader.readEntries(resolve, reject);
-        });
-        for (const entry of entries) {
-            const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
-            if (entry.isDirectory) {
-                await this._collectFiles(entry, u3encFiles, otherFiles, entryPath);
-            } else if (entry.isFile) {
-                if (entry.name.toLowerCase() === 'page1.js.u3enc') {
-                    u3encFiles.push({ entry, relativePath: entryPath });
-                } else {
-                    otherFiles.push({ entry, relativePath: entryPath });
-                }
-            }
-        }
-    }
-
-    deduplicateAnswers(answers) {
-        const seen = new Set();
-        return answers.filter(ans => {
-            const key = `${ans.question}|${ans.answer}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
-    }
-
-    readFileEntry(fileEntry) {
-        return new Promise((resolve, reject) => {
-            fileEntry.file(file => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file);
-            }, reject);
-        });
-    }
-
-    readFileEntryText(fileEntry) {
-        return new Promise((resolve, reject) => {
-            fileEntry.file(file => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsText(file);
-            }, reject);
-        });
     }
 
     async processFileContent(content, fileName) {
@@ -640,61 +652,6 @@ class AnswerExtractor {
             console.error('processFileContent failed:', error);
         }
         return answers;
-    }
-
-    async scanDirectoryForAnswersNative(dirPath, logCallback, flipbookScanner) {
-        const allAnswers = [];
-        const u3encFiles = [];
-        const otherFiles = [];
-
-        await this._collectFilesNative(dirPath, u3encFiles, otherFiles, '', flipbookScanner);
-
-        if (u3encFiles.length > 0 && logCallback) {
-            logCallback('找到 ' + u3encFiles.length + ' 个 u3enc 文件', 'info');
-        }
-
-        for (const file of u3encFiles) {
-            if (logCallback) logCallback(file.relativePath + ': 需要解密', 'warning');
-        }
-
-        for (const file of otherFiles) {
-            const name = file.name.toLowerCase();
-            if (!name.endsWith('.json') && !name.endsWith('.js') && !name.endsWith('.xml') && !name.endsWith('.txt')) continue;
-            try {
-                var fileData = await new Promise((resolve) => {
-                    flipbookScanner.readFile(file.path, (result) => resolve(result), () => resolve(null));
-                });
-                if (!fileData || !fileData.content) continue;
-                const fileAnswers = await this.processFileContent(fileData.content, name);
-                if (fileAnswers.length > 0) {
-                    allAnswers.push(...fileAnswers.map(a => ({ ...a, sourceFile: file.relativePath })));
-                    if (logCallback) logCallback(file.relativePath + ': ' + fileAnswers.length + ' 个答案', 'success');
-                }
-            } catch (error) {
-                if (logCallback) logCallback(file.relativePath + ': 处理失败', 'error');
-            }
-        }
-
-        return this.deduplicateAnswers(allAnswers);
-    }
-
-    async _collectFilesNative(dirPath, u3encFiles, otherFiles, basePath, flipbookScanner) {
-        var app = this;
-        var entries = await new Promise((resolve) => {
-            flipbookScanner.listFiles(dirPath, (result) => resolve(result), () => resolve([]));
-        });
-        for (const entry of entries) {
-            var entryPath = basePath ? basePath + '/' + entry.name : entry.name;
-            if (entry.isDirectory) {
-                await app._collectFilesNative(entry.path, u3encFiles, otherFiles, entryPath, flipbookScanner);
-            } else if (entry.isFile) {
-                if (entry.name.toLowerCase() === 'page1.js.u3enc') {
-                    u3encFiles.push({ path: entry.path, name: entry.name, relativePath: entryPath });
-                } else {
-                    otherFiles.push({ path: entry.path, name: entry.name, relativePath: entryPath });
-                }
-            }
-        }
     }
 }
 

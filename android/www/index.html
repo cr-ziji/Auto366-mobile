@@ -74,16 +74,16 @@
                         <div class="card-content">
                             <div class="status-item">
                                 <div class="status-info">
-                                    <i class="bi bi-shield-lock status-icon"></i>
+                                    <i class="bi bi-folder2-open status-icon"></i>
                                     <div class="status-text">
-                                        <span class="status-label">权限状态</span>
-                                        <span id="permissionStatus" class="status-value stopped">未授权</span>
+                                        <span class="status-label">目录状态</span>
+                                        <span id="dirStatus" class="status-value stopped">未就绪</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="status-item">
                                 <div class="status-info">
-                                    <i class="bi bi-folder status-icon"></i>
+                                    <i class="bi bi-broadcast status-icon"></i>
                                     <div class="status-text">
                                         <span class="status-label">监听状态</span>
                                         <span id="monitorStatus" class="status-value stopped">未启动</span>
@@ -225,14 +225,14 @@
                                         <span class="toggle-label">启动时自动开始监听</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" id="autoStartMonitor">
+                                        <input type="checkbox" id="autoStartMonitor" title="启动时自动开始监听">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
                             </div>
                             <div class="setting-item">
                                 <label>轮询间隔 (毫秒)</label>
-                                <input type="number" id="pollIntervalInput" class="form-input" value="1000" min="500" max="30000" step="500">
+                                <input type="number" id="pollIntervalInput" class="form-input" value="1000" min="500" max="30000" step="500" title="轮询间隔" placeholder="输入轮询间隔（毫秒）">
                             </div>
                         </div>
                     </div>
