@@ -620,6 +620,82 @@ class AnswerExtractor {
             }, reject);
         });
     }
+
+    async processFileContent(content, fileName) {
+        const answers = [];
+        try {
+            if (fileName.endsWith('.json')) {
+                return this.extractFromJSON(content);
+            } else if (fileName.endsWith('.js')) {
+                if (fileName.endsWith('.u3enc')) {
+                    return [];
+                }
+                return this.extractFromJS(content);
+            } else if (fileName.endsWith('.xml')) {
+                return this.extractFromXML(content, fileName);
+            } else if (fileName.endsWith('.txt')) {
+                return this.extractFromText(content);
+            }
+        } catch (error) {
+            console.error('processFileContent failed:', error);
+        }
+        return answers;
+    }
+
+    async scanDirectoryForAnswersNative(dirPath, logCallback, flipbookScanner) {
+        const allAnswers = [];
+        const u3encFiles = [];
+        const otherFiles = [];
+
+        await this._collectFilesNative(dirPath, u3encFiles, otherFiles, '', flipbookScanner);
+
+        if (u3encFiles.length > 0 && logCallback) {
+            logCallback('找到 ' + u3encFiles.length + ' 个 u3enc 文件', 'info');
+        }
+
+        for (const file of u3encFiles) {
+            if (logCallback) logCallback(file.relativePath + ': 需要解密', 'warning');
+        }
+
+        for (const file of otherFiles) {
+            const name = file.name.toLowerCase();
+            if (!name.endsWith('.json') && !name.endsWith('.js') && !name.endsWith('.xml') && !name.endsWith('.txt')) continue;
+            try {
+                var fileData = await new Promise((resolve) => {
+                    flipbookScanner.readFile(file.path, (result) => resolve(result), () => resolve(null));
+                });
+                if (!fileData || !fileData.content) continue;
+                const fileAnswers = await this.processFileContent(fileData.content, name);
+                if (fileAnswers.length > 0) {
+                    allAnswers.push(...fileAnswers.map(a => ({ ...a, sourceFile: file.relativePath })));
+                    if (logCallback) logCallback(file.relativePath + ': ' + fileAnswers.length + ' 个答案', 'success');
+                }
+            } catch (error) {
+                if (logCallback) logCallback(file.relativePath + ': 处理失败', 'error');
+            }
+        }
+
+        return this.deduplicateAnswers(allAnswers);
+    }
+
+    async _collectFilesNative(dirPath, u3encFiles, otherFiles, basePath, flipbookScanner) {
+        var app = this;
+        var entries = await new Promise((resolve) => {
+            flipbookScanner.listFiles(dirPath, (result) => resolve(result), () => resolve([]));
+        });
+        for (const entry of entries) {
+            var entryPath = basePath ? basePath + '/' + entry.name : entry.name;
+            if (entry.isDirectory) {
+                await app._collectFilesNative(entry.path, u3encFiles, otherFiles, entryPath, flipbookScanner);
+            } else if (entry.isFile) {
+                if (entry.name.toLowerCase() === 'page1.js.u3enc') {
+                    u3encFiles.push({ path: entry.path, name: entry.name, relativePath: entryPath });
+                } else {
+                    otherFiles.push({ path: entry.path, name: entry.name, relativePath: entryPath });
+                }
+            }
+        }
+    }
 }
 
 window.AnswerExtractor = AnswerExtractor;

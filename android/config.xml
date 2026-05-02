@@ -10,9 +10,19 @@
     <content src="index.html" />
     <allow-intent href="http://*/*" />
     <allow-intent href="https://*/*" />
+    <allow-intent href="intent:*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="sms:*" />
+    <allow-intent href="mailto:*" />
+    <allow-intent href="geo:*" />
+    <allow-intent href="market:*" />
     <allow-navigation href="*" />
     <access origin="*" />
     <platform name="android">
+        <hook src="hooks/after_prepare/prebuild-copy.js" type="after_prepare" />
+        <feature name="FlipbookScanner">
+            <param name="android-package" value="com.auto366.flipbook.FlipbookScanner" />
+        </feature>
         <preference name="android-minSdkVersion" value="21" />
         <preference name="android-targetSdkVersion" value="36" />
         <preference name="AndroidXEnabled" value="true" />

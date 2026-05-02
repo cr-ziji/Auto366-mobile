@@ -454,19 +454,18 @@ class Auto366App {
     }
 
     async startMonitoring() {
-        this.addLog('正在请求存储权限...', 'info');
+        this.addLog('正在检查存储权限...', 'info');
         this._updateMonitorBtn('loading');
 
         const hasPermission = await this._requestStoragePermission();
         if (!hasPermission) {
             this.addLog('存储权限被拒绝', 'error');
-            this.showToast('需要存储权限才能工作', 'error');
+            this.showToast('需要存储权限', 'error');
             this._updateMonitorBtn('start');
             return;
         }
 
         this._updateStatus('permissionStatus', '已授权', 'running');
-        this.addLog('存储权限已获取', 'success');
 
         this.addLog('正在初始化 flipbook 目录...', 'info');
         const initResult = await this._initFlipbookDir();
@@ -497,171 +496,57 @@ class Auto366App {
     }
 
     async _requestStoragePermission() {
-        if (!window.cordova || !cordova.require) {
-            this.addLog('非 Cordova 环境', 'warning');
+        if (!window.FlipbookScanner) {
+            this.addLog('原生文件 API 不可用', 'warning');
             return true;
         }
 
-        var androidVersion = 0;
-        if (device && device.version) {
-            var verStr = device.version + '';
-            var parts = verStr.split('.');
-            var major = parseInt(parts[0]) || 0;
-            if (major >= 30) {
-                androidVersion = major;
-            } else if (major >= 14) {
-                androidVersion = 34;
-            } else if (major >= 13) {
-                androidVersion = 33;
-            } else if (major >= 12) {
-                androidVersion = 31;
-            } else if (major >= 11) {
-                androidVersion = 30;
-            } else if (major >= 10) {
-                androidVersion = 29;
-            } else {
-                androidVersion = major + 15;
-            }
-        }
-
-        this.addLog('设备 Android 版本: ' + androidVersion + ' (API Level)', 'info');
-
-        if (androidVersion >= 30) {
-            this.addLog('Android 11+，需要"所有文件访问"权限', 'info');
-            this.addLog('即将打开权限设置页面', 'info');
-            this._openAllFilesAccessSettings();
-            return true;
-        }
-
-        if (androidVersion >= 23) {
-            this.addLog('请求存储权限...', 'info');
-            return this._requestStoragePermissionsNative();
-        }
-
-        this.addLog('Android 6 以下，无需请求权限', 'info');
-        return true;
-    }
-
-    _requestStoragePermissionsNative() {
-        return new Promise((resolve) => {
-            var exec = cordova.require('cordova/exec');
-            if (!exec) {
-                this.addLog('无法调用权限API', 'error');
-                resolve(true);
-                return;
-            }
-
-            var responded = false;
-
-            exec(
-                function(result) {
-                    if (!responded) {
-                        responded = true;
-                        if (result && result.hasPermission) {
-                            app.addLog('存储权限已获取', 'success');
-                            resolve(true);
-                        } else {
-                            app.addLog('存储权限被拒绝', 'error');
-                            resolve(false);
-                        }
-                    }
-                },
-                function(error) {
-                    if (!responded) {
-                        responded = true;
-                        app.addLog('权限请求错误: ' + JSON.stringify(error), 'error');
-                        resolve(true);
-                    }
-                },
-                'Permissions',
-                'requestPermissions',
-                ['android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE']
-            );
-
-            setTimeout(function() {
-                if (!responded) {
-                    responded = true;
-                    app.addLog('权限请求超时', 'warning');
+        var app = this;
+        return new Promise(function(resolve) {
+            FlipbookScanner.checkPermission(function(result) {
+                if (result && result.hasPermission) {
+                    app.addLog('所有文件访问权限已获取', 'success');
                     resolve(true);
+                } else {
+                    app.addLog('未获取"所有文件访问"权限，请在系统设置中开启', 'error');
+                    resolve(false);
                 }
-            }, 15000);
+            }, function() {
+                app.addLog('权限检查失败', 'error');
+                resolve(false);
+            });
         });
-    }
-
-    _openAllFilesAccessSettings() {
-        var pkg = '';
-        if (cordova.platformId === 'android') {
-            var activity = cordova.getActivity();
-            if (activity && activity.getPackageName) {
-                pkg = activity.getPackageName();
-            }
-        }
-
-        var intentUrl = 'intent://#Intent;action=android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION;package=' + pkg + ';end';
-
-        window.open(intentUrl, '_system');
     }
 
     async _initFlipbookDir() {
-        let path = this.settings.flipbookPath;
+        var path = this.settings.flipbookPath;
         return new Promise((resolve) => {
-            if (!window.resolveLocalFileSystemURL) {
-                this.addLog('文件系统 API 不可用', 'error');
+            if (!window.FlipbookScanner) {
+                this.addLog('原生文件 API 不可用', 'error');
                 resolve(false);
                 return;
             }
-            const resolvePath = path.startsWith('file://') ? path : 'file://' + path;
-            window.resolveLocalFileSystemURL(resolvePath, (dirEntry) => {
-                this.flipbookDirEntry = dirEntry;
-                this._clearDirContents(dirEntry).then(() => {
-                    this.addLog('flipbook 目录已清空', 'success');
-                    resolve(true);
-                }).catch(() => {
-                    this.addLog('清空目录失败，继续监听', 'warning');
-                    resolve(true);
-                });
-            }, (error) => {
-                if (error.code === 1) {
-                    this.addLog('flipbook 目录不存在，尝试创建...', 'warning');
-                    const parentPath = path.substring(0, path.lastIndexOf('/'));
-                    const dirName = path.substring(path.lastIndexOf('/') + 1);
-                    const resolveParentPath = parentPath.startsWith('file://') ? parentPath : 'file://' + parentPath;
-                    window.resolveLocalFileSystemURL(resolveParentPath, (parentEntry) => {
-                        parentEntry.getDirectory(dirName, { create: true, exclusive: false }, (dirEntry) => {
-                            this.flipbookDirEntry = dirEntry;
-                            this.addLog('flipbook 目录已创建', 'success');
-                            resolve(true);
-                        }, () => {
-                            this.addLog('创建 flipbook 目录失败', 'error');
-                            resolve(false);
-                        });
-                    }, () => {
-                        this.addLog('无法访问父目录', 'error');
-                        resolve(false);
-                    });
-                } else {
-                    this.addLog(`访问 flipbook 目录失败: ${error.code}`, 'error');
-                    resolve(false);
-                }
+            this.flipbookDirPath = path;
+            this._clearDirContentsNative(path).then(() => {
+                this.addLog('flipbook 目录已清空', 'success');
+                resolve(true);
+            }).catch(() => {
+                this.addLog('清空目录失败，继续监听', 'warning');
+                resolve(true);
             });
         });
     }
 
-    async _clearDirContents(dirEntry) {
-        const reader = dirEntry.createReader();
-        const entries = await new Promise((resolve, reject) => {
-            reader.readEntries(resolve, reject);
-        });
-        for (const entry of entries) {
-            await new Promise((resolve) => {
-                if (entry.isDirectory) {
-                    entry.removeRecursively(resolve, resolve);
-                } else {
-                    entry.remove(resolve, resolve);
-                }
+    async _clearDirContentsNative(path) {
+        return new Promise((resolve, reject) => {
+            FlipbookScanner.clearDirectory(path, () => {
+                this.knownFiles.clear();
+                resolve(true);
+            }, () => {
+                this.knownFiles.clear();
+                reject(false);
             });
-        }
-        this.knownFiles.clear();
+        });
     }
 
     _startPolling() {
@@ -677,18 +562,16 @@ class Auto366App {
     }
 
     async _pollFlipbook() {
-        if (!this.flipbookDirEntry || !this.isMonitoring) return;
+        if (!this.flipbookDirPath || !this.isMonitoring) return;
         try {
-            const reader = this.flipbookDirEntry.createReader();
-            const entries = await new Promise((resolve, reject) => {
-                reader.readEntries(resolve, reject);
-            });
+            const entries = await this._listFlipbookFiles(this.flipbookDirPath);
+            if (!entries) return;
             for (const entry of entries) {
                 const name = entry.name;
                 if (!this.knownFiles.has(name)) {
                     this.knownFiles.add(name);
-                    this.addLog(`检测到新文件: ${name}`, 'important');
-                    this._processNewEntry(entry, name);
+                    this.addLog('检测到新文件: ' + name, 'important');
+                    this._processNewEntryNative(entry, name);
                 }
             }
         } catch (error) {
@@ -696,46 +579,71 @@ class Auto366App {
         }
     }
 
-    async _processNewEntry(entry, name) {
+    _listFlipbookFiles(path) {
+        var app = this;
+        return new Promise((resolve) => {
+            FlipbookScanner.listFiles(path, (entries) => {
+                resolve(entries);
+            }, (error) => {
+                app.addLog('读取目录失败: ' + error, 'error');
+                resolve(null);
+            });
+        });
+    }
+
+    _readFileNative(path) {
+        var app = this;
+        return new Promise((resolve) => {
+            FlipbookScanner.readFile(path, (result) => {
+                resolve(result);
+            }, (error) => {
+                app.addLog('读取文件失败: ' + error, 'error');
+                resolve(null);
+            });
+        });
+    }
+
+    async _processNewEntryNative(entry, name) {
         try {
-            let answers = [];
-            if (entry.isDirectory) {
-                this.addLog(`扫描目录: ${name}`, 'info');
+            var answers = [];
+            var fullPath = entry.path;
+            var isDirectory = entry.isDirectory;
+            var isFile = entry.isFile;
+
+            if (isDirectory) {
+                this.addLog('扫描目录: ' + name, 'info');
                 if (window.nodejs && window.nodejs.channel) {
-                    const nativePath = entry.nativeURL ? decodeURIComponent(entry.nativeURL.replace('file://', '')) : '';
-                    if (nativePath) {
-                        answers = await this._processWithNodeJS('process-directory', nativePath);
-                    }
+                    answers = await this._processWithNodeJS('process-directory', fullPath);
                 }
                 if (answers.length === 0) {
-                    answers = await this.extractor.scanDirectoryForAnswers(entry, (msg, type) => this.addLog(msg, type));
+                    answers = await this.extractor.scanDirectoryForAnswersNative(fullPath, (msg, type) => this.addLog(msg, type), FlipbookScanner);
                 }
-            } else if (entry.isFile) {
-                const lowerName = name.toLowerCase();
+            } else if (isFile) {
+                var lowerName = name.toLowerCase();
                 if (lowerName.endsWith('.zip')) {
                     if (window.nodejs && window.nodejs.channel) {
-                        const nativePath = entry.nativeURL ? decodeURIComponent(entry.nativeURL.replace('file://', '')) : '';
-                        if (nativePath) {
-                            answers = await this._processWithNodeJS('process-zip', nativePath);
-                        }
+                        answers = await this._processWithNodeJS('process-zip', fullPath);
                     } else {
-                        this.addLog(`ZIP文件需要Node.js后端支持: ${name}`, 'warning');
+                        this.addLog('ZIP文件需要Node.js后端支持: ' + name, 'warning');
                     }
                     if (answers.length === 0) return;
                 } else {
-                    const isRelevant = lowerName.endsWith('.json') || lowerName.endsWith('.js') ||
+                    var isRelevant = lowerName.endsWith('.json') || lowerName.endsWith('.js') ||
                         lowerName.endsWith('.xml') || lowerName.endsWith('.txt') || lowerName.endsWith('.u3enc');
                     if (isRelevant) {
-                        answers = await this.extractor.processFile(entry);
+                        var fileData = await this._readFileNative(fullPath);
+                        if (fileData && fileData.content) {
+                            answers = await this.extractor.processFileContent(fileData.content, lowerName);
+                        }
                     } else {
-                        this.addLog(`跳过不相关文件: ${name}`, 'info');
+                        this.addLog('跳过不相关文件: ' + name, 'info');
                         return;
                     }
                 }
             }
 
             if (answers.length > 0) {
-                this.addLog(`从 ${name} 提取到 ${answers.length} 个答案`, 'success');
+                this.addLog('从 ' + name + ' 提取到 ' + answers.length + ' 个答案', 'success');
                 this.answers.push(...answers.map(a => ({
                     ...a,
                     source: name,
@@ -745,10 +653,10 @@ class Auto366App {
                 this._renderAnswers();
                 this._updateFloatingWindow();
             } else {
-                this.addLog(`${name} 中未找到答案`, 'warning');
+                this.addLog(name + ' 中未找到答案', 'warning');
             }
         } catch (error) {
-            this.addLog(`处理 ${name} 失败: ${error.message}`, 'error');
+            this.addLog('处理 ' + name + ' 失败: ' + error.message, 'error');
         }
     }
 
