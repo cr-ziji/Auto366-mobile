@@ -766,6 +766,30 @@ body {
     margin-top: 4px !important;
 }
 
+.about-website {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 8px 20px;
+    background: var(--primary);
+    color: #FFFFFF;
+    border-radius: var(--radius);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all var(--duration) var(--ease);
+}
+
+.about-website:active {
+    transform: scale(0.97);
+    opacity: 0.85;
+}
+
+.about-website i {
+    font-size: 16px;
+}
+
 .floating-window {
     position: fixed;
     bottom: 80px;

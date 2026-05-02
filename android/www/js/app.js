@@ -37,28 +37,31 @@ class Auto366App {
     }
 
     _initDarkMode() {
-        const saved = this.settings.darkMode;
-        if (saved === true) {
-            document.documentElement.classList.add('dark-mode');
-        } else if (saved === false) {
-            document.documentElement.classList.remove('dark-mode');
-        } else {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (prefersDark) document.documentElement.classList.add('dark-mode');
-            const toggle = document.getElementById('darkModeToggle');
-            if (toggle) toggle.checked = prefersDark;
-        }
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            if (this.settings.darkMode === null) {
-                if (e.matches) {
-                    document.documentElement.classList.add('dark-mode');
-                } else {
-                    document.documentElement.classList.remove('dark-mode');
-                }
-                const toggle = document.getElementById('darkModeToggle');
-                if (toggle) toggle.checked = e.matches;
+        const saved = this.settings.themeMode || 'auto';
+        this._applyTheme(saved);
+        const select = document.getElementById('themeModeSelect');
+        if (select) select.value = saved;
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (this.settings.themeMode === 'auto') {
+                this._applyTheme('auto');
             }
         });
+    }
+
+    _applyTheme(mode) {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (mode === 'dark') {
+            document.documentElement.classList.add('dark-mode');
+        } else if (mode === 'light') {
+            document.documentElement.classList.remove('dark-mode');
+        } else {
+            if (prefersDark) {
+                document.documentElement.classList.add('dark-mode');
+            } else {
+                document.documentElement.classList.remove('dark-mode');
+            }
+        }
+        this._updateAboutLogo();
     }
 
     _initEventListeners() {
@@ -114,15 +117,12 @@ class Auto366App {
             clearLogsBtn.addEventListener('click', () => this.clearLogs());
         }
 
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        if (darkModeToggle) {
-            darkModeToggle.addEventListener('change', (e) => {
-                this.settings.darkMode = e.target.checked;
-                if (e.target.checked) {
-                    document.documentElement.classList.add('dark-mode');
-                } else {
-                    document.documentElement.classList.remove('dark-mode');
-                }
+        const themeModeSelect = document.getElementById('themeModeSelect');
+        if (themeModeSelect) {
+            themeModeSelect.value = this.settings.themeMode || 'auto';
+            themeModeSelect.addEventListener('change', (e) => {
+                this.settings.themeMode = e.target.value;
+                this._applyTheme(e.target.value);
                 this._saveSettings();
             });
         }
@@ -422,68 +422,97 @@ class Auto366App {
     }
 
     async _requestStoragePermission() {
-        if (!window.cordova) {
-            this.addLog('非 Cordova 环境，跳过权限检查', 'warning');
+        if (!window.cordova || !cordova.require) {
+            this.addLog('非 Cordova 环境', 'warning');
             return true;
         }
-        return new Promise((resolve) => {
-            if (!window.permissions || !cordova.plugins || !cordova.plugins.permissions) {
-                this.addLog('权限插件不可用，尝试直接访问', 'warning');
-                resolve(true);
-                return;
-            }
-            const perms = cordova.plugins.permissions;
-            const sdkVersion = device ? (parseInt(device.version) || 0) : 0;
 
-            if (sdkVersion >= 30) {
-                perms.checkPermission(perms.MANAGE_EXTERNAL_STORAGE, (status) => {
-                    if (status.hasPermission) {
-                        resolve(true);
-                    } else {
-                        perms.requestPermission(perms.MANAGE_EXTERNAL_STORAGE, (result) => {
-                            if (result.hasPermission) {
-                                resolve(true);
-                            } else {
-                                perms.requestPermission(perms.READ_EXTERNAL_STORAGE, (r2) => {
-                                    resolve(r2.hasPermission);
-                                }, () => resolve(false));
-                            }
-                        }, () => resolve(false));
+        const sdkVersion = device ? (parseInt(device.version) || 0) : 0;
+
+        if (sdkVersion >= 30) {
+            this.addLog('Android 11+，打开系统设置授权', 'info');
+            this.addLog('请允许"允许访问所有文件"权限', 'info');
+            this._openAllFilesAccessSettings();
+            return true;
+        }
+
+        return this._requestStoragePermissionsNative();
+    }
+
+    _requestStoragePermissionsNative() {
+        return new Promise((resolve) => {
+            var exec = cordova.require('cordova/exec');
+            var responded = false;
+
+            exec(
+                function(result) {
+                    if (!responded) {
+                        responded = true;
+                        if (result && result.hasPermission) {
+                            app.addLog('存储权限已获取', 'success');
+                            resolve(true);
+                        } else {
+                            app.addLog('存储权限被拒绝', 'error');
+                            resolve(false);
+                        }
                     }
-                }, () => resolve(false));
-            } else {
-                perms.checkPermission(perms.READ_EXTERNAL_STORAGE, (status) => {
-                    if (status.hasPermission) {
-                        resolve(true);
-                    } else {
-                        perms.requestPermissions(
-                            [perms.READ_EXTERNAL_STORAGE, perms.WRITE_EXTERNAL_STORAGE],
-                            (result) => {
-                                resolve(result.hasPermission);
-                            },
-                            () => resolve(false)
-                        );
+                },
+                function(error) {
+                    if (!responded) {
+                        responded = true;
+                        app.addLog('权限请求错误: ' + JSON.stringify(error), 'error');
+                        resolve(false);
                     }
-                }, () => {
-                    perms.requestPermissions(
-                        [perms.READ_EXTERNAL_STORAGE, perms.WRITE_EXTERNAL_STORAGE],
-                        (result) => resolve(result.hasPermission),
-                        () => resolve(false)
-                    );
-                });
-            }
+                },
+                'Permissions',
+                'requestPermissions',
+                ['android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE']
+            );
+
+            setTimeout(function() {
+                if (!responded) {
+                    responded = true;
+                    app.addLog('权限请求超时', 'error');
+                    resolve(false);
+                }
+            }, 15000);
         });
     }
 
+    _openAllFilesAccessSettings() {
+        var pkg = '';
+        if (cordova.platformId === 'android') {
+            var activity = cordova.getActivity();
+            if (activity && activity.getPackageName) {
+                pkg = activity.getPackageName();
+            }
+        }
+
+        var intentUrl = 'intent://#Intent;action=android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION;package=' + pkg + ';end';
+
+        var iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = intentUrl;
+        document.body.appendChild(iframe);
+
+        setTimeout(function() {
+            document.body.removeChild(iframe);
+        }, 2000);
+
+        this.addLog('已打开文件权限设置页面', 'info');
+        this.addLog('请允许"允许访问所有文件"后返回应用', 'info');
+    }
+
     async _initFlipbookDir() {
-        const path = this.settings.flipbookPath;
+        let path = this.settings.flipbookPath;
         return new Promise((resolve) => {
             if (!window.resolveLocalFileSystemURL) {
                 this.addLog('文件系统 API 不可用', 'error');
                 resolve(false);
                 return;
             }
-            window.resolveLocalFileSystemURL(path, (dirEntry) => {
+            const resolvePath = path.startsWith('file://') ? path : 'file://' + path;
+            window.resolveLocalFileSystemURL(resolvePath, (dirEntry) => {
                 this.flipbookDirEntry = dirEntry;
                 this._clearDirContents(dirEntry).then(() => {
                     this.addLog('flipbook 目录已清空', 'success');
@@ -497,8 +526,9 @@ class Auto366App {
                     this.addLog('flipbook 目录不存在，尝试创建...', 'warning');
                     const parentPath = path.substring(0, path.lastIndexOf('/'));
                     const dirName = path.substring(path.lastIndexOf('/') + 1);
-                    window.resolveLocalFileSystemURL(parentPath, (parentEntry) => {
-                        parentEntry.getDirectory(dirName, { create: true }, (dirEntry) => {
+                    const resolveParentPath = parentPath.startsWith('file://') ? parentPath : 'file://' + parentPath;
+                    window.resolveLocalFileSystemURL(resolveParentPath, (parentEntry) => {
+                        parentEntry.getDirectory(dirName, { create: true, exclusive: false }, (dirEntry) => {
                             this.flipbookDirEntry = dirEntry;
                             this.addLog('flipbook 目录已创建', 'success');
                             resolve(true);
@@ -843,8 +873,6 @@ class Auto366App {
             const saved = localStorage.getItem('auto366-settings');
             if (saved) this.settings = { ...this.settings, ...JSON.parse(saved) };
         } catch (e) {}
-        const toggle = document.getElementById('darkModeToggle');
-        if (toggle && this.settings.darkMode !== null) toggle.checked = this.settings.darkMode;
         const autoStart = document.getElementById('autoStartMonitor');
         if (autoStart) autoStart.checked = this.settings.autoStart;
         const pollInput = document.getElementById('pollIntervalInput');
@@ -855,6 +883,13 @@ class Auto366App {
         try {
             localStorage.setItem('auto366-settings', JSON.stringify(this.settings));
         } catch (e) {}
+    }
+
+    _updateAboutLogo() {
+        const logo = document.getElementById('aboutLogo');
+        if (!logo) return;
+        const isDark = document.documentElement.classList.contains('dark-mode');
+        logo.src = isDark ? 'img/icon.png' : 'img/icon_black.png';
     }
 
     _escapeHtml(text) {

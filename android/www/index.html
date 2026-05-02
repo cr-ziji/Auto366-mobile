@@ -6,7 +6,7 @@
     <meta name="format-detection" content="telephone=no">
     <meta name="msapplication-tap-highlight" content="no">
     <meta name="color-scheme" content="light dark">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: https: 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content: https:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: https: 'unsafe-eval' 'unsafe-inline' intent:; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content: https:;">
     <title>Auto366 Mobile</title>
     <link rel="icon" type="image/png" href="img/icon.png">
     <link rel="stylesheet" href="css/bootstrap-icons.css">
@@ -238,15 +238,12 @@
                         </div>
                         <div class="card-content">
                             <div class="setting-item">
-                                <div class="setting-toggle">
-                                    <div class="toggle-info">
-                                        <span class="toggle-label">深色模式</span>
-                                    </div>
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="darkModeToggle">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
+                                <label>主题模式</label>
+                                <select id="themeModeSelect" class="form-select">
+                                    <option value="auto">跟随系统</option>
+                                    <option value="dark">深色模式</option>
+                                    <option value="light">浅色模式</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -256,10 +253,14 @@
                         </div>
                         <div class="card-content">
                             <div class="about-info">
-                                <img src="img/icon.png" alt="Auto366" class="about-logo">
+                                <img id="aboutLogo" src="img/icon.png" alt="Auto366" class="about-logo">
                                 <h4>Auto366 Mobile</h4>
                                 <p>v2.0.0</p>
                                 <p class="about-desc">天学网本地答案提取工具</p>
+                                <a href="https://366.cyril.qzz.io" class="about-website" target="_blank">
+                                    <i class="bi bi-globe2"></i>
+                                    <span>官方网站</span>
+                                </a>
                             </div>
                         </div>
                     </div>
