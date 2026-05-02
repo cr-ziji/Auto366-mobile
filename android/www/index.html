@@ -55,7 +55,7 @@
                 </a>
             </div>
             <div class="menu-footer">
-                <span class="app-version">v2.0.0</span>
+                <span class="app-version">v1.0.0</span>
             </div>
         </nav>
 
@@ -127,7 +127,7 @@
                             </div>
                             <div class="guide-step">
                                 <span class="step-num">2</span>
-                                <span>打开天学网APP开始练习</span>
+                                <span>打开天学网APP任意练习</span>
                             </div>
                             <div class="guide-step">
                                 <span class="step-num">3</span>
@@ -157,7 +157,7 @@
                             <div class="no-data">
                                 <i class="bi bi-inbox"></i>
                                 <p>暂无答案数据</p>
-                                <small>开始监听后练习即可自动获取答案</small>
+                                <small>开始监听后打开任意练习即可自动获取答案</small>
                             </div>
                         </div>
                     </div>
@@ -168,6 +168,9 @@
                 <div class="view-header">
                     <h1 class="view-title">日志</h1>
                     <div class="view-actions">
+                        <button id="copyLogsBtn" class="icon-btn" title="复制所有日志">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
                         <button id="clearLogsBtn" class="icon-btn" title="清空日志">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -205,8 +208,9 @@
                         <div class="card-content">
                             <div class="setting-item">
                                 <label>Flipbook目录</label>
-                                <input type="text" id="flipbookPathInput" class="form-input" readonly
-                                    value="/storage/emulated/0/Android/data/com.up366.mobile/files/flipbook">
+                                <div class="path-display" id="flipbookPathDisplay">
+                                    <span>/storage/emulated/0/Android/data/com.up366.mobile/files/flipbook</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -239,11 +243,17 @@
                         <div class="card-content">
                             <div class="setting-item">
                                 <label>主题模式</label>
-                                <select id="themeModeSelect" class="form-select">
-                                    <option value="auto">跟随系统</option>
-                                    <option value="dark">深色模式</option>
-                                    <option value="light">浅色模式</option>
-                                </select>
+                                <div id="themeDropdown" class="custom-dropdown">
+                                    <div class="dropdown-selected" id="themeDropdownBtn">
+                                        <span id="themeDropdownText">跟随系统</span>
+                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                    </div>
+                                    <div class="dropdown-options" id="themeDropdownOptions">
+                                        <div class="dropdown-option" data-value="auto">跟随系统</div>
+                                        <div class="dropdown-option" data-value="dark">深色模式</div>
+                                        <div class="dropdown-option" data-value="light">浅色模式</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -253,15 +263,15 @@
                         </div>
                         <div class="card-content">
                             <div class="about-info">
-                                <img id="aboutLogo" src="img/icon.png" alt="Auto366" class="about-logo">
-                                <h4>Auto366 Mobile</h4>
-                                <p>v2.0.0</p>
-                                <p class="about-desc">天学网本地答案提取工具</p>
-                                <a href="https://366.cyril.qzz.io" class="about-website" target="_blank">
-                                    <i class="bi bi-globe2"></i>
-                                    <span>官方网站</span>
-                                </a>
-                            </div>
+                                    <img id="aboutLogo" src="img/icon.png" alt="Auto366" class="about-logo">
+                                    <h4>Auto366 Mobile</h4>
+                                    <p>v1.0.0</p>
+                                    <p class="about-desc">天学网答案提取器</p>
+                                    <button id="openWebsiteBtn" class="about-website" type="button">
+                                        <i class="bi bi-globe2"></i>
+                                        <span>官方网站</span>
+                                    </button>
+                                </div>
                         </div>
                     </div>
                 </div>

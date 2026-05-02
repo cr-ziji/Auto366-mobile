@@ -27,9 +27,9 @@ class Auto366App {
     }
 
     _initAfterDOM() {
+        this._loadSettings();
         this._initDarkMode();
         this._initEventListeners();
-        this._loadSettings();
         this._updateUI();
         if (this.settings.autoStart) {
             setTimeout(() => this.startMonitoring(), 500);
@@ -62,6 +62,73 @@ class Auto366App {
             }
         }
         this._updateAboutLogo();
+    }
+
+    _initThemeDropdown() {
+        const dropdown = document.getElementById('themeDropdown');
+        const btn = document.getElementById('themeDropdownBtn');
+        const text = document.getElementById('themeDropdownText');
+        const options = document.getElementById('themeDropdownOptions');
+
+        if (!dropdown || !btn || !text || !options) return;
+
+        this._setThemeDropdownValue(this.settings.themeMode || 'auto');
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isOpen = options.classList.contains('show');
+            if (isOpen) {
+                this._closeThemeDropdown();
+            } else {
+                this._openThemeDropdown();
+            }
+        });
+
+        options.querySelectorAll('.dropdown-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.preventDefault();
+                const value = opt.getAttribute('data-value');
+                this.settings.themeMode = value;
+                this._applyTheme(value);
+                this._setThemeDropdownValue(value);
+                this._closeThemeDropdown();
+                this._saveSettings();
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (dropdown && !dropdown.contains(e.target)) {
+                this._closeThemeDropdown();
+            }
+        });
+    }
+
+    _setThemeDropdownValue(value) {
+        const text = document.getElementById('themeDropdownText');
+        const options = document.getElementById('themeDropdownOptions');
+        if (!text || !options) return;
+
+        const labels = { auto: '跟随系统', dark: '深色模式', light: '浅色模式' };
+        text.textContent = labels[value] || '跟随系统';
+
+        options.querySelectorAll('.dropdown-option').forEach(opt => {
+            opt.classList.toggle('active', opt.getAttribute('data-value') === value);
+        });
+    }
+
+    _openThemeDropdown() {
+        const options = document.getElementById('themeDropdownOptions');
+        const btn = document.getElementById('themeDropdownBtn');
+        if (options) options.classList.add('show');
+        if (btn) btn.classList.add('active');
+    }
+
+    _closeThemeDropdown() {
+        const options = document.getElementById('themeDropdownOptions');
+        const btn = document.getElementById('themeDropdownBtn');
+        if (options) options.classList.remove('show');
+        if (btn) btn.classList.remove('active');
     }
 
     _initEventListeners() {
@@ -117,15 +184,12 @@ class Auto366App {
             clearLogsBtn.addEventListener('click', () => this.clearLogs());
         }
 
-        const themeModeSelect = document.getElementById('themeModeSelect');
-        if (themeModeSelect) {
-            themeModeSelect.value = this.settings.themeMode || 'auto';
-            themeModeSelect.addEventListener('change', (e) => {
-                this.settings.themeMode = e.target.value;
-                this._applyTheme(e.target.value);
-                this._saveSettings();
-            });
+        const copyLogsBtn = document.getElementById('copyLogsBtn');
+        if (copyLogsBtn) {
+            copyLogsBtn.addEventListener('click', () => this.copyAllLogs());
         }
+
+        this._initThemeDropdown();
 
         const autoStartMonitor = document.getElementById('autoStartMonitor');
         if (autoStartMonitor) {
@@ -145,6 +209,17 @@ class Auto366App {
                 if (this.isMonitoring) {
                     this._stopPolling();
                     this._startPolling();
+                }
+            });
+        }
+
+        const openWebsiteBtn = document.getElementById('openWebsiteBtn');
+        if (openWebsiteBtn) {
+            openWebsiteBtn.addEventListener('click', () => {
+                if (navigator.app && navigator.app.loadUrl) {
+                    navigator.app.loadUrl('https://366.cyril.qzz.io', { openExternal: true });
+                } else {
+                    window.open('https://366.cyril.qzz.io', '_system');
                 }
             });
         }
@@ -427,21 +502,55 @@ class Auto366App {
             return true;
         }
 
-        const sdkVersion = device ? (parseInt(device.version) || 0) : 0;
+        var androidVersion = 0;
+        if (device && device.version) {
+            var verStr = device.version + '';
+            var parts = verStr.split('.');
+            var major = parseInt(parts[0]) || 0;
+            if (major >= 30) {
+                androidVersion = major;
+            } else if (major >= 14) {
+                androidVersion = 34;
+            } else if (major >= 13) {
+                androidVersion = 33;
+            } else if (major >= 12) {
+                androidVersion = 31;
+            } else if (major >= 11) {
+                androidVersion = 30;
+            } else if (major >= 10) {
+                androidVersion = 29;
+            } else {
+                androidVersion = major + 15;
+            }
+        }
 
-        if (sdkVersion >= 30) {
-            this.addLog('Android 11+，打开系统设置授权', 'info');
-            this.addLog('请允许"允许访问所有文件"权限', 'info');
+        this.addLog('设备 Android 版本: ' + androidVersion + ' (API Level)', 'info');
+
+        if (androidVersion >= 30) {
+            this.addLog('Android 11+，需要"所有文件访问"权限', 'info');
+            this.addLog('即将打开权限设置页面', 'info');
             this._openAllFilesAccessSettings();
             return true;
         }
 
-        return this._requestStoragePermissionsNative();
+        if (androidVersion >= 23) {
+            this.addLog('请求存储权限...', 'info');
+            return this._requestStoragePermissionsNative();
+        }
+
+        this.addLog('Android 6 以下，无需请求权限', 'info');
+        return true;
     }
 
     _requestStoragePermissionsNative() {
         return new Promise((resolve) => {
             var exec = cordova.require('cordova/exec');
+            if (!exec) {
+                this.addLog('无法调用权限API', 'error');
+                resolve(true);
+                return;
+            }
+
             var responded = false;
 
             exec(
@@ -461,7 +570,7 @@ class Auto366App {
                     if (!responded) {
                         responded = true;
                         app.addLog('权限请求错误: ' + JSON.stringify(error), 'error');
-                        resolve(false);
+                        resolve(true);
                     }
                 },
                 'Permissions',
@@ -472,8 +581,8 @@ class Auto366App {
             setTimeout(function() {
                 if (!responded) {
                     responded = true;
-                    app.addLog('权限请求超时', 'error');
-                    resolve(false);
+                    app.addLog('权限请求超时', 'warning');
+                    resolve(true);
                 }
             }, 15000);
         });
@@ -490,17 +599,7 @@ class Auto366App {
 
         var intentUrl = 'intent://#Intent;action=android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION;package=' + pkg + ';end';
 
-        var iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = intentUrl;
-        document.body.appendChild(iframe);
-
-        setTimeout(function() {
-            document.body.removeChild(iframe);
-        }, 2000);
-
-        this.addLog('已打开文件权限设置页面', 'info');
-        this.addLog('请允许"允许访问所有文件"后返回应用', 'info');
+        window.open(intentUrl, '_system');
     }
 
     async _initFlipbookDir() {
@@ -831,6 +930,15 @@ class Auto366App {
         this._renderLogs();
         this._updateLogCount();
         this.showToast('日志已清空', 'success');
+    }
+
+    copyAllLogs() {
+        if (this.logs.length === 0) {
+            this.showToast('暂无日志可复制', 'warning');
+            return;
+        }
+        const allText = this.logs.map(log => `[${log.timestamp}] ${log.message}`).join('\n');
+        this._copyToClipboard(allText);
     }
 
     _updateStatus(elementId, text, className) {
