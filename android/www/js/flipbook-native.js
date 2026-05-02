@@ -13,6 +13,10 @@ var FlipbookScanner = {
 
     clearDirectory: function(path, successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'clearDirectory', [path]);
+    },
+
+    ensureDirectory: function(path, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'ensureDirectory', [path]);
     }
 };
 

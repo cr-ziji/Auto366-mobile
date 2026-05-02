@@ -18,11 +18,11 @@
     <allow-intent href="market:*" />
     <allow-navigation href="*" />
     <access origin="*" />
+    <feature name="FlipbookScanner">
+        <param name="android-package" value="com.auto366.flipbook.FlipbookScanner" />
+    </feature>
     <platform name="android">
         <hook src="hooks/after_prepare/prebuild-copy.js" type="after_prepare" />
-        <feature name="FlipbookScanner">
-            <param name="android-package" value="com.auto366.flipbook.FlipbookScanner" />
-        </feature>
         <preference name="android-minSdkVersion" value="21" />
         <preference name="android-targetSdkVersion" value="36" />
         <preference name="AndroidXEnabled" value="true" />
@@ -40,9 +40,8 @@
     <plugin name="cordova-plugin-dialogs" spec="2.0.2" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <preference name="DisallowOverscroll" value="true" />
     <preference name="BackupWebStorage" value="none" />
     <preference name="SplashScreen" value="none" />

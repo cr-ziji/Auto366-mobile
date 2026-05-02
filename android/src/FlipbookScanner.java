@@ -23,6 +23,7 @@ public class FlipbookScanner extends CordovaPlugin {
     private static final String ACTION_LIST_FILES = "listFiles";
     private static final String ACTION_READ_FILE = "readFile";
     private static final String ACTION_CLEAR_DIR = "clearDirectory";
+    private static final String ACTION_ENSURE_DIR = "ensureDirectory";
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
@@ -39,6 +40,9 @@ public class FlipbookScanner extends CordovaPlugin {
             case ACTION_CLEAR_DIR:
                 clearDirectory(args.getString(0), callbackContext);
                 return true;
+            case ACTION_ENSURE_DIR:
+                ensureDirectory(args.getString(0), callbackContext);
+                return true;
         }
         return false;
     }
@@ -46,8 +50,12 @@ public class FlipbookScanner extends CordovaPlugin {
     private void checkPermission(CallbackContext callbackContext) {
         cordova.getThreadPool().execute(() -> {
             boolean hasPermission = false;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                hasPermission = Environment.isExternalStorageManager();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                String[] permissions = {
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                };
+                hasPermission = cordova.hasPermission(permissions[0]) && cordova.hasPermission(permissions[1]);
             } else {
                 hasPermission = true;
             }
@@ -149,6 +157,29 @@ public class FlipbookScanner extends CordovaPlugin {
                     result.put("error", "Failed to clear directory");
                     callbackContext.error(result);
                 }
+            } catch (JSONException e) {
+                callbackContext.error("JSON error: " + e.getMessage());
+            }
+        });
+    }
+
+    private void ensureDirectory(String path, CallbackContext callbackContext) {
+        cordova.getThreadPool().execute(() -> {
+            String actualPath = bypassPath(path);
+            File dir = new File(actualPath);
+            Log.i(TAG, "Ensure directory original path: " + path);
+            Log.i(TAG, "Ensure directory bypass path: " + actualPath);
+
+            if (!dir.exists()) {
+                boolean created = dir.mkdirs();
+                Log.i(TAG, "Directory created: " + created);
+            }
+
+            try {
+                JSONObject result = new JSONObject();
+                result.put("exists", dir.exists());
+                result.put("path", dir.getAbsolutePath().replace(ZERO_WIDTH_SPACE, ""));
+                callbackContext.success(result);
             } catch (JSONException e) {
                 callbackContext.error("JSON error: " + e.getMessage());
             }

@@ -154,6 +154,22 @@ class Auto366App {
             menuOverlay.addEventListener('click', () => this.closeMenu());
         }
 
+        const errorMsg = document.getElementById('errorMsg');
+        if (errorMsg) {
+            errorMsg.addEventListener('click', () => {
+                this.showView('logs');
+                this.hideNotification('error');
+            });
+        }
+
+        const answerMsg = document.getElementById('answerMsg');
+        if (answerMsg) {
+            answerMsg.addEventListener('click', () => {
+                this.showView('answers');
+                this.hideNotification('answer');
+            });
+        }
+
         this._initSwipeGestures();
 
         document.querySelectorAll('.menu-item').forEach(item => {
@@ -454,20 +470,9 @@ class Auto366App {
     }
 
     async startMonitoring() {
-        this.addLog('正在检查存储权限...', 'info');
+        this.addLog('正在初始化 flipbook 目录...', 'info');
         this._updateMonitorBtn('loading');
 
-        const hasPermission = await this._requestStoragePermission();
-        if (!hasPermission) {
-            this.addLog('存储权限被拒绝', 'error');
-            this.showToast('需要存储权限', 'error');
-            this._updateMonitorBtn('start');
-            return;
-        }
-
-        this._updateStatus('permissionStatus', '已授权', 'running');
-
-        this.addLog('正在初始化 flipbook 目录...', 'info');
         const initResult = await this._initFlipbookDir();
         if (!initResult) {
             this.addLog('flipbook 目录初始化失败', 'error');
@@ -527,11 +532,24 @@ class Auto366App {
                 return;
             }
             this.flipbookDirPath = path;
-            this._clearDirContentsNative(path).then(() => {
+            this._ensureDirExistsNative(path).then(() => {
+                return this._clearDirContentsNative(path);
+            }).then(() => {
                 this.addLog('flipbook 目录已清空', 'success');
                 resolve(true);
             }).catch(() => {
                 this.addLog('清空目录失败，继续监听', 'warning');
+                resolve(true);
+            });
+        });
+    }
+
+    async _ensureDirExistsNative(path) {
+        return new Promise((resolve) => {
+            FlipbookScanner.ensureDirectory(path, () => {
+                this.addLog('已创建 flipbook 目录', 'info');
+                resolve(true);
+            }, () => {
                 resolve(true);
             });
         });
@@ -586,6 +604,7 @@ class Auto366App {
                 resolve(entries);
             }, (error) => {
                 app.addLog('读取目录失败: ' + error, 'error');
+                app.showNotification('error');
                 resolve(null);
             });
         });
@@ -652,6 +671,7 @@ class Auto366App {
                 this._updateStatus('answerCount', String(this.answers.length), 'running');
                 this._renderAnswers();
                 this._updateFloatingWindow();
+                this.showNotification('answer');
             } else {
                 this.addLog(name + ' 中未找到答案', 'warning');
             }
@@ -943,6 +963,22 @@ class Auto366App {
             toast.className = `toast ${type}`;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    }
+
+    showNotification(type) {
+        const bar = document.getElementById('notificationBar');
+        const item = document.getElementById(type === 'error' ? 'errorMsg' : 'answerMsg');
+        if (bar) bar.style.display = '';
+        if (item) item.style.display = '';
+    }
+
+    hideNotification(type) {
+        const bar = document.getElementById('notificationBar');
+        const item = document.getElementById(type === 'error' ? 'errorMsg' : 'answerMsg');
+        if (item) item.style.display = 'none';
+        if (bar && bar.querySelectorAll('.notification-item[style*="display: none"]').length === bar.querySelectorAll('.notification-item').length) {
+            bar.style.display = 'none';
         }
     }
 }
