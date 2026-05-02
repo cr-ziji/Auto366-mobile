@@ -17,6 +17,10 @@ var FlipbookScanner = {
 
     ensureDirectory: function(path, successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'ensureDirectory', [path]);
+    },
+
+    openAllFilesAccessSettings: function(successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'openAllFilesAccessSettings', []);
     }
 };
 

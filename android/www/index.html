@@ -297,11 +297,23 @@
         <div id="notificationBar" class="notification-bar" style="display:none">
             <div id="errorMsg" class="notification-item error" style="display:none">
                 <i class="bi bi-exclamation-circle"></i>
-                <span>出现错误，点击跳转</span>
+                <span>出现报错，点击跳转</span>
             </div>
             <div id="answerMsg" class="notification-item answer" style="display:none">
                 <i class="bi bi-check-circle"></i>
-                <span>发现答案，点击跳转</span>
+                <span>截获到答案，点击跳转</span>
+            </div>
+        </div>
+
+        <div id="permissionOverlay" class="permission-overlay" style="display:none">
+            <div class="permission-content">
+                <i class="bi bi-folder2-open permission-icon"></i>
+                <h3>需要"所有文件访问"权限</h3>
+                <p>需要访问天学网本地数据目录以提取答案，请在系统设置中开启此权限</p>
+                <div class="permission-actions">
+                    <button class="permission-btn cancel" id="permissionCancel">暂不开启</button>
+                    <button class="permission-btn primary" id="permissionGrant">前往开启</button>
+                </div>
             </div>
         </div>
     </div>

@@ -14,6 +14,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import android.content.Intent;
+import android.net.Uri;
+import android.provider.Settings;
+import android.app.Activity;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FlipbookScanner extends CordovaPlugin {
 
@@ -24,6 +30,16 @@ public class FlipbookScanner extends CordovaPlugin {
     private static final String ACTION_READ_FILE = "readFile";
     private static final String ACTION_CLEAR_DIR = "clearDirectory";
     private static final String ACTION_ENSURE_DIR = "ensureDirectory";
+    private static final String ACTION_OPEN_SETTINGS = "openAllFilesAccessSettings";
+
+    private Map<String, String> bypassPathCache = new HashMap<>();
+
+    private String bypassPath(String originalPath) {
+        if (originalPath.contains("/Android/" + ZERO_WIDTH_SPACE + "data")) {
+            return originalPath;
+        }
+        return originalPath.replace("/Android/data", "/Android/" + ZERO_WIDTH_SPACE + "data");
+    }
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
@@ -43,6 +59,9 @@ public class FlipbookScanner extends CordovaPlugin {
             case ACTION_ENSURE_DIR:
                 ensureDirectory(args.getString(0), callbackContext);
                 return true;
+            case ACTION_OPEN_SETTINGS:
+                openAllFilesAccessSettings(callbackContext);
+                return true;
         }
         return false;
     }
@@ -50,12 +69,10 @@ public class FlipbookScanner extends CordovaPlugin {
     private void checkPermission(CallbackContext callbackContext) {
         cordova.getThreadPool().execute(() -> {
             boolean hasPermission = false;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                String[] permissions = {
-                    android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-                };
-                hasPermission = cordova.hasPermission(permissions[0]) && cordova.hasPermission(permissions[1]);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                hasPermission = Environment.isExternalStorageManager();
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                hasPermission = cordova.hasPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE);
             } else {
                 hasPermission = true;
             }
@@ -69,8 +86,20 @@ public class FlipbookScanner extends CordovaPlugin {
         });
     }
 
-    private String bypassPath(String originalPath) {
-        return originalPath.replace("/Android/data", "/Android/" + ZERO_WIDTH_SPACE + "data");
+    private void openAllFilesAccessSettings(CallbackContext callbackContext) {
+        cordova.getThreadPool().execute(() -> {
+            Activity activity = this.cordova.getActivity();
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            intent.setData(Uri.parse("package:" + activity.getPackageName()));
+            activity.startActivity(intent);
+            try {
+                JSONObject result = new JSONObject();
+                result.put("success", true);
+                callbackContext.success(result);
+            } catch (JSONException e) {
+                callbackContext.error("JSON error: " + e.getMessage());
+            }
+        });
     }
 
     private void listFiles(String path, CallbackContext callbackContext) {
@@ -89,21 +118,26 @@ public class FlipbookScanner extends CordovaPlugin {
             }
 
             File[] files = dir.listFiles();
+            if (files == null) {
+                Log.w(TAG, "listFiles() returned null for: " + actualPath);
+                callbackContext.success(new JSONArray());
+                return;
+            }
+            Log.i(TAG, "Found " + files.length + " files");
             JSONArray result = new JSONArray();
-            if (files != null) {
-                for (File file : files) {
-                    try {
-                        JSONObject entry = new JSONObject();
-                        entry.put("name", file.getName().replace(ZERO_WIDTH_SPACE, ""));
-                        entry.put("isDirectory", file.isDirectory());
-                        entry.put("isFile", file.isFile());
-                        entry.put("size", file.length());
-                        entry.put("lastModified", file.lastModified());
-                        entry.put("path", file.getAbsolutePath().replace(ZERO_WIDTH_SPACE, ""));
-                        result.put(entry);
-                    } catch (JSONException e) {
-                        Log.w(TAG, "JSON error for file: " + file.getName());
-                    }
+            for (File file : files) {
+                try {
+                    Log.i(TAG, "  File: " + file.getName() + " isDir=" + file.isDirectory());
+                    JSONObject entry = new JSONObject();
+                    entry.put("name", file.getName().replace(ZERO_WIDTH_SPACE, ""));
+                    entry.put("isDirectory", file.isDirectory());
+                    entry.put("isFile", file.isFile());
+                    entry.put("size", file.length());
+                    entry.put("lastModified", file.lastModified());
+                    entry.put("path", file.getAbsolutePath().replace(ZERO_WIDTH_SPACE, ""));
+                    result.put(entry);
+                } catch (JSONException e) {
+                    Log.w(TAG, "JSON error for file: " + file.getName());
                 }
             }
             callbackContext.success(result);
@@ -114,6 +148,10 @@ public class FlipbookScanner extends CordovaPlugin {
         cordova.getThreadPool().execute(() -> {
             String actualPath = bypassPath(path);
             File file = new File(actualPath);
+            Log.i(TAG, "Read file original path: " + path);
+            Log.i(TAG, "Read file bypass path: " + actualPath);
+            Log.i(TAG, "Read file exists: " + file.exists());
+            Log.i(TAG, "Read file isFile: " + file.isFile());
             if (!file.exists() || !file.isFile()) {
                 callbackContext.error("File does not exist: " + path);
                 return;
@@ -126,12 +164,18 @@ public class FlipbookScanner extends CordovaPlugin {
                     content.append(line).append("\n");
                 }
                 reader.close();
+                String resultContent = content.toString();
+                Log.i(TAG, "Read file content length: " + resultContent.length());
+                if (resultContent.length() > 200) {
+                    Log.i(TAG, "Read file content preview: " + resultContent.substring(0, 200));
+                }
                 JSONObject result = new JSONObject();
-                result.put("content", content.toString());
+                result.put("content", resultContent);
                 result.put("size", file.length());
                 result.put("path", file.getAbsolutePath().replace(ZERO_WIDTH_SPACE, ""));
                 callbackContext.success(result);
             } catch (IOException e) {
+                Log.e(TAG, "Read file IO error: " + e.getMessage());
                 callbackContext.error("Read error: " + e.getMessage());
             } catch (JSONException e) {
                 callbackContext.error("JSON error: " + e.getMessage());
