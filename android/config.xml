@@ -26,6 +26,9 @@
         <preference name="android-minSdkVersion" value="21" />
         <preference name="android-targetSdkVersion" value="36" />
         <preference name="AndroidXEnabled" value="true" />
+        <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application">
+            <application android:requestLegacyExternalStorage="true" />
+        </edit-config>
         <allow-intent href="market:*" />
         <icon density="ldpi" src="img/icon-36.png" />
         <icon density="mdpi" src="img/icon-48.png" />
