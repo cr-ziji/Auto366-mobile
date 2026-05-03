@@ -34,10 +34,16 @@ public class FlipbookScanner extends CordovaPlugin {
     private static final String ACTION_CLEAR_DIR = "clearDirectory";
     private static final String ACTION_ENSURE_DIR = "ensureDirectory";
     private static final String ACTION_OPEN_SETTINGS = "openAllFilesAccessSettings";
+    private static final String ACTION_SET_USE_ZERO_WIDTH = "setUseZeroWidthPath";
+
+    private boolean useZeroWidthPath = true;
 
     private Map<String, String> bypassPathCache = new HashMap<>();
 
     private String bypassPath(String originalPath) {
+        if (!useZeroWidthPath) {
+            return originalPath;
+        }
         if (originalPath.contains("/Android/" + ZERO_WIDTH_SPACE + "data")) {
             return originalPath;
         }
@@ -67,6 +73,9 @@ public class FlipbookScanner extends CordovaPlugin {
                 return true;
             case ACTION_OPEN_SETTINGS:
                 openAllFilesAccessSettings(callbackContext);
+                return true;
+            case ACTION_SET_USE_ZERO_WIDTH:
+                setUseZeroWidthPath(args.getBoolean(0), callbackContext);
                 return true;
         }
         return false;
@@ -282,5 +291,17 @@ public class FlipbookScanner extends CordovaPlugin {
             }
         }
         return allSuccess;
+    }
+
+    private void setUseZeroWidthPath(boolean use, CallbackContext callbackContext) {
+        useZeroWidthPath = use;
+        Log.i(TAG, "useZeroWidthPath set to: " + use);
+        try {
+            JSONObject result = new JSONObject();
+            result.put("success", true);
+            callbackContext.success(result);
+        } catch (JSONException e) {
+            callbackContext.error("JSON error: " + e.getMessage());
+        }
     }
 }

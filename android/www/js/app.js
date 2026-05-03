@@ -16,7 +16,8 @@ class Auto366App {
             flipbookPath: '/storage/emulated/0/Android/data/com.up366.mobile/files/flipbook',
             pollInterval: 1000,
             autoStart: false,
-            darkMode: null
+            darkMode: null,
+            useZeroWidthPath: true
         };
     }
 
@@ -211,6 +212,11 @@ class Auto366App {
             clearAnswersBtn.addEventListener('click', () => this.clearAnswers());
         }
 
+        const copyAllAnswersBtn = document.getElementById('copyAllAnswersBtn');
+        if (copyAllAnswersBtn) {
+            copyAllAnswersBtn.addEventListener('click', () => this.copyAllAnswers());
+        }
+
         const clearLogsBtn = document.getElementById('clearLogsBtn');
         if (clearLogsBtn) {
             clearLogsBtn.addEventListener('click', () => this.clearLogs());
@@ -241,6 +247,39 @@ class Auto366App {
                 if (this.isMonitoring) {
                     this._stopPolling();
                     this._startPolling();
+                }
+            });
+        }
+
+        const useZeroWidthPath = document.getElementById('useZeroWidthPath');
+        if (useZeroWidthPath) {
+            useZeroWidthPath.checked = this.settings.useZeroWidthPath !== false;
+            if (window.FlipbookScanner) {
+                FlipbookScanner.setUseZeroWidthPath(useZeroWidthPath.checked, () => {}, () => {});
+            }
+            useZeroWidthPath.addEventListener('change', async (e) => {
+                this.settings.useZeroWidthPath = e.target.checked;
+                this._saveSettings();
+                if (window.FlipbookScanner) {
+                    FlipbookScanner.setUseZeroWidthPath(e.target.checked, () => {
+                        this.addLog('已' + (e.target.checked ? '启用' : '禁用') + '零宽度空字符路径', 'info');
+                    }, () => {
+                        this.addLog('切换零宽度路径设置失败', 'error');
+                    });
+                }
+                if (this.isMonitoring) {
+                    this.addLog('切换路径模式，正在重新初始化...', 'info');
+                    this._stopPolling();
+                    this.knownFiles.clear();
+                    this.dirSizes = {};
+                    this.scannedDirs.clear();
+                    const initResult = await this._initFlipbookDir();
+                    if (initResult) {
+                        this.addLog('重新初始化完毕，继续监听', 'success');
+                        this._startPolling();
+                    } else {
+                        this.addLog('重新初始化失败', 'error');
+                    }
                 }
             });
         }
@@ -490,6 +529,10 @@ class Auto366App {
         if (!hasPermission) {
             this._showPermissionDialog();
             return;
+        }
+
+        if (window.FlipbookScanner) {
+            FlipbookScanner.setUseZeroWidthPath(this.settings.useZeroWidthPath !== false, () => {}, () => {});
         }
 
         this.addLog('正在初始化 flipbook 目录...', 'info');
@@ -1090,26 +1133,107 @@ class Auto366App {
             return;
         }
 
-        let html = '<div class="answer-group">';
-        html += `<div class="group-header"><h4><i class="bi bi-list-check"></i> 答案列表</h4><span class="answer-count-badge">${this.answers.length}</span></div>`;
+        const typeOrder = ['听后选择', '听后回答', '听后转述', '朗读短文'];
+        
+        const grouped = [];
+        const seen = new Map();
+        
         this.answers.forEach((ans, i) => {
-            html += `
-                <div class="answer-item" data-index="${i}">
-                    <div class="answer-header">
-                        <span class="answer-index">${this._escapeHtml(ans.question || '未知问题')}</span>
-                        <span class="answer-type">${this._escapeHtml(ans.pattern || '未知')}</span>
-                    </div>
-                    <div class="answer-text">${this._escapeHtml(ans.answer || '')}</div>
-                </div>`;
+            const type = ans.pattern || '未知';
+            const questionKey = ans.question || '未知问题';
+            const mergeKey = `${type}|${questionKey}`;
+            
+            let group = grouped.find(g => g.type === type);
+            if (!group) {
+                group = { type, items: [] };
+                grouped.push(group);
+            }
+            
+            if (seen.has(mergeKey)) {
+                const existingItem = seen.get(mergeKey);
+                if (!existingItem.children) existingItem.children = [];
+                existingItem.children.push({ index: i, answer: ans });
+            } else {
+                const newItem = { index: i, answer: ans, children: [] };
+                group.items.push(newItem);
+                seen.set(mergeKey, newItem);
+            }
         });
-        html += '</div>';
+
+        grouped.sort((a, b) => {
+            const idxA = typeOrder.indexOf(a.type);
+            const idxB = typeOrder.indexOf(b.type);
+            return (idxA === -1 ? typeOrder.length : idxA) - (idxB === -1 ? typeOrder.length : idxB);
+        });
+
+        let html = '';
+        grouped.forEach(group => {
+            html += `<div class="answer-group">`;
+            html += `<div class="group-header"><h4><i class="bi bi-tag"></i> ${this._escapeHtml(group.type)}</h4><span class="answer-count-badge">${group.items.length}</span></div>`;
+            group.items.forEach(({ index, answer, children }) => {
+                if (children && children.length > 0) {
+                    html += `
+                        <div class="answer-item multi-answer" data-index="${index}">
+                            <div class="answer-header">
+                                <span class="answer-index">${this._escapeHtml(answer.question || '未知问题')}</span>
+                                <span class="answer-type">${this._escapeHtml(answer.pattern || '未知')}</span>
+                            </div>
+                            <div class="answer-children">`;
+                    children.forEach((child) => {
+                        html += `
+                                <div class="answer-child">
+                                    <span class="answer-child-label">${this._escapeHtml(child.answer.question)}</span>
+                                    <span class="answer-child-text">${this._escapeHtml(child.answer.answer)}</span>
+                                </div>`;
+                    });
+                    html += `
+                            </div>
+                        </div>`;
+                } else if (answer.children && answer.children.length > 0) {
+                    html += `
+                        <div class="answer-item multi-answer" data-index="${index}">
+                            <div class="answer-header">
+                                <span class="answer-index">${this._escapeHtml(answer.question || '未知问题')}</span>
+                                <span class="answer-type">${this._escapeHtml(answer.pattern || '未知')}</span>
+                            </div>
+                            <div class="answer-children">`;
+                    answer.children.forEach((child) => {
+                        html += `
+                                <div class="answer-child">
+                                    <span class="answer-child-label">${this._escapeHtml(child.question)}</span>
+                                    <span class="answer-child-text">${this._escapeHtml(child.answer)}</span>
+                                </div>`;
+                    });
+                    html += `
+                            </div>
+                        </div>`;
+                } else {
+                    html += `
+                        <div class="answer-item" data-index="${index}">
+                            <div class="answer-header">
+                                <span class="answer-index">${this._escapeHtml(answer.question || '未知问题')}</span>
+                                <span class="answer-type">${this._escapeHtml(answer.pattern || '未知')}</span>
+                            </div>
+                            <div class="answer-text">${this._escapeHtml(answer.answer || '')}</div>
+                        </div>`;
+                }
+            });
+            html += '</div>';
+        });
         container.innerHTML = html;
 
         container.querySelectorAll('.answer-item').forEach(item => {
             item.addEventListener('click', () => {
                 const idx = parseInt(item.getAttribute('data-index'));
                 const ans = this.answers[idx];
-                if (ans) this._copyToClipboard(ans.answer);
+                if (ans) {
+                    if (ans.children && ans.children.length > 0) {
+                        const text = ans.children.map(c => c.answer).join('\n');
+                        this._copyToClipboard(text);
+                    } else {
+                        this._copyToClipboard(ans.answer);
+                    }
+                }
             });
         });
     }
@@ -1179,6 +1303,38 @@ class Auto366App {
         this._renderAnswers();
         this._updateFloatingWindow();
         this.showToast('答案已清空', 'success');
+    }
+
+    copyAllAnswers() {
+        if (this.answers.length === 0) {
+            this.showToast('暂无答案可复制', 'warning');
+            return;
+        }
+        const typeOrder = ['听后选择', '听后回答', '听后转述', '朗读短文'];
+        const grouped = {};
+        this.answers.forEach(ans => {
+            const type = ans.pattern || '未知';
+            if (!grouped[type]) grouped[type] = [];
+            grouped[type].push(ans);
+        });
+        let allText = '';
+        typeOrder.forEach(type => {
+            if (grouped[type]) {
+                allText += `【${type}】\n`;
+                grouped[type].forEach((ans, idx) => {
+                    if (ans.children && ans.children.length > 0) {
+                        allText += `${ans.question}：\n`;
+                        ans.children.forEach((child, cIdx) => {
+                            allText += `  ${child.question}: ${child.answer}\n`;
+                        });
+                    } else {
+                        allText += `${idx + 1}. ${ans.question}: ${ans.answer}\n`;
+                    }
+                });
+                allText += '\n';
+            }
+        });
+        this._copyToClipboard(allText.trim());
     }
 
     clearLogs() {

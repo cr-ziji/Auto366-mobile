@@ -709,6 +709,42 @@ body {
     font-weight: 500;
 }
 
+.answer-children {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+}
+
+.answer-child {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary);
+}
+
+.answer-child-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.answer-child-text {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.multi-answer {
+    background: var(--bg);
+    border-radius: 4px;
+}
+
 .logs-container {
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
     font-size: 13px;
@@ -786,6 +822,14 @@ body {
     font-weight: 500;
     color: var(--text);
     display: block;
+}
+
+.toggle-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    display: block;
+    margin-top: 4px;
 }
 
 .toggle-switch {

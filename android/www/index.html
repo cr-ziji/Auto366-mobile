@@ -146,10 +146,13 @@
                 <div class="view-header">
                     <h1 class="view-title">答案</h1>
                     <div class="view-actions">
-                        <button id="clearAnswersBtn" class="icon-btn" title="清空答案">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
+                    <button id="copyAllAnswersBtn" class="icon-btn" title="复制所有答案">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                    <button id="clearAnswersBtn" class="icon-btn" title="清空答案">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
                 </div>
                 <div class="card-container">
                     <div class="answers-card">
@@ -226,6 +229,18 @@
                                     </div>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="autoStartMonitor" title="启动时自动开始监听">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-toggle">
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">使用零宽度空字符路径绕过</span>
+                                        <span class="toggle-desc">Android 11+ 需要开启，Android 10 及以下请关闭</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="useZeroWidthPath" title="使用零宽度空字符路径绕过" checked>
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>

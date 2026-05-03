@@ -25,6 +25,10 @@ var FlipbookScanner = {
 
     openAllFilesAccessSettings: function(successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'openAllFilesAccessSettings', []);
+    },
+
+    setUseZeroWidthPath: function(use, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'setUseZeroWidthPath', [use]);
     }
 };
 

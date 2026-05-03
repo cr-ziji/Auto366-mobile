@@ -115,7 +115,7 @@ class AnswerExtractor {
                                 answer: `${question.answer_text}. ${answerContent}`,
                                 content: `请回答: ${question.answer_text}. ${answerContent}`,
                                 questionText: questionText,
-                                pattern: '听后选择-整体',
+                                pattern: '听后选择',
                                 mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                             });
                         }
@@ -133,7 +133,7 @@ class AnswerExtractor {
                                         answer: `${q.answer_text}. ${answerContent}`,
                                         content: `请回答: ${q.answer_text}. ${answerContent}`,
                                         questionText: questionText,
-                                        pattern: '听后选择-嵌套',
+                                        pattern: '听后回答',
                                         mediaIndex: this._extractMediaIndexFromContent(q.media?.file || '')
                                     });
                                 }
@@ -146,14 +146,14 @@ class AnswerExtractor {
                         const correctAnswers = speakList.filter(item => item.work === "1" && item.show === "1");
                         for (const item of correctAnswers) {
                             if (item.content && item.content.trim()) {
-                                const questionText = this.cleanHtmlText(question.question_text || '口语跟读');
+                                const questionText = this.cleanHtmlText(question.question_text || '听后回答');
                                 const answerContent = this.cleanHtmlText(item.content.trim());
                                 answers.push({
                                     question: questionText,
                                     answer: answerContent,
                                     content: `请回答: ${answerContent}`,
                                     questionText: questionText,
-                                    pattern: '口语跟读',
+                                    pattern: '听后回答',
                                     mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                                 });
                             }
@@ -164,11 +164,11 @@ class AnswerExtractor {
                         const analysisText = this.cleanHtmlText(question.analysis).trim();
                         if (analysisText) {
                             answers.push({
-                                question: '朗读文本',
+                                question: '朗读短文',
                                 answer: analysisText,
                                 content: `请朗读: ${analysisText}`,
                                 questionText: analysisText.substring(0, 50) + (analysisText.length > 50 ? '...' : ''),
-                                pattern: '朗读',
+                                pattern: '朗读短文',
                                 mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                             });
                         }
@@ -182,13 +182,13 @@ class AnswerExtractor {
                         analysisText = analysisText.replace(/\s+/g, ' ').trim();
                         if (analysisText) {
                             const firstAnswer = analysisText.split(/\s*答案[一二三四五六七八九十]+：\s*/)[0] || analysisText;
-                            const questionText = this.cleanHtmlText(question.question_text || '故事复述');
+                            const questionText = this.cleanHtmlText(question.question_text || '听后转述');
                             answers.push({
                                 question: questionText,
                                 answer: firstAnswer.trim(),
-                                content: `请复述: ${firstAnswer.trim()}`,
+                                content: `请转述: ${firstAnswer.trim()}`,
                                 questionText: questionText,
-                                pattern: '故事复述',
+                                pattern: '听后转述',
                                 mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                             });
                         }
@@ -241,16 +241,21 @@ class AnswerExtractor {
     _sortAndDeduplicateAnswers(answers, sourceMode = 'page1') {
         if (!answers || answers.length === 0) return answers;
 
-        let sortedAnswers;
-        if (sourceMode === 'page1' || sourceMode === 'mixed') {
-            sortedAnswers = [...answers];
-        } else {
-            sortedAnswers = [...answers].sort((a, b) => {
-                const indexA = a.mediaIndex !== undefined && a.mediaIndex !== null ? a.mediaIndex : Infinity;
-                const indexB = b.mediaIndex !== undefined && b.mediaIndex !== null ? b.mediaIndex : Infinity;
-                return indexA - indexB;
-            });
-        }
+        const typeOrder = ['听后选择', '听后回答', '听后转述', '朗读短文'];
+
+        const sortedAnswers = [...answers].sort((a, b) => {
+            const typeA = a.pattern || '';
+            const typeB = b.pattern || '';
+            const indexA = typeOrder.indexOf(typeA);
+            const indexB = typeOrder.indexOf(typeB);
+            const orderA = indexA === -1 ? typeOrder.length : indexA;
+            const orderB = indexB === -1 ? typeOrder.length : indexB;
+            if (orderA !== orderB) return orderA - orderB;
+
+            const mediaIndexA = a.mediaIndex !== undefined && a.mediaIndex !== null ? a.mediaIndex : Infinity;
+            const mediaIndexB = b.mediaIndex !== undefined && b.mediaIndex !== null ? b.mediaIndex : Infinity;
+            return mediaIndexA - mediaIndexB;
+        });
 
         const seen = new Map();
         const deduplicated = [];
