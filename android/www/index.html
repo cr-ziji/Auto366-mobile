@@ -236,11 +236,23 @@
                             <div class="setting-item">
                                 <div class="setting-toggle">
                                     <div class="toggle-info">
-                                        <span class="toggle-label">使用零宽度空字符路径绕过</span>
-                                        <span class="toggle-desc">Android 11+ 需要开启，Android 10 及以下请关闭</span>
+                                        <span class="toggle-label">SAF 模式（存储访问框架）</span>
+                                        <span class="toggle-desc">适用于旧版本 Android，需手动选择目录</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" id="useZeroWidthPath" title="使用零宽度空字符路径绕过" checked>
+                                        <input type="checkbox" id="safMode" title="SAF 模式">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item" id="zeroWidthSetting">
+                                <div class="setting-toggle">
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">使用零宽度空字符路径绕过</span>
+                                        <span class="toggle-desc">Android 11+ 建议开启</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="useZeroWidth" title="使用零宽度空字符路径绕过" checked>
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>

@@ -14,10 +14,12 @@ class Auto366App {
         this.flipbookDirEntry = null;
         this.settings = {
             flipbookPath: '/storage/emulated/0/Android/data/com.up366.mobile/files/flipbook',
+            safTreeUri: '',
             pollInterval: 1000,
             autoStart: false,
             darkMode: null,
-            useZeroWidthPath: true
+            safMode: false,
+            useZeroWidth: true
         };
     }
 
@@ -251,24 +253,63 @@ class Auto366App {
             });
         }
 
-        const useZeroWidthPath = document.getElementById('useZeroWidthPath');
-        if (useZeroWidthPath) {
-            useZeroWidthPath.checked = this.settings.useZeroWidthPath !== false;
-            if (window.FlipbookScanner) {
-                FlipbookScanner.setUseZeroWidthPath(useZeroWidthPath.checked, () => {}, () => {});
-            }
-            useZeroWidthPath.addEventListener('change', async (e) => {
-                this.settings.useZeroWidthPath = e.target.checked;
+        const safMode = document.getElementById('safMode');
+        if (safMode) {
+            safMode.checked = this.settings.safMode === true;
+            this._updateZeroWidthVisibility();
+            safMode.addEventListener('change', async (e) => {
+                this.settings.safMode = e.target.checked;
+                this._updateZeroWidthVisibility();
                 this._saveSettings();
                 if (window.FlipbookScanner) {
-                    FlipbookScanner.setUseZeroWidthPath(e.target.checked, () => {
+                    FlipbookScanner.setSafMode(e.target.checked, () => {}, () => {});
+                }
+                if (e.target.checked) {
+                    const hasSafUri = this.settings.safTreeUri && this.settings.safTreeUri.length > 0;
+                    if (!hasSafUri) {
+                        this.addLog('SAF 模式需要选择目录，正在打开选择器...', 'info');
+                        const selected = await this._requestSafTreeUri();
+                        if (!selected) {
+                            this.addLog('未选择目录，已关闭 SAF 模式', 'warning');
+                            this.settings.safMode = false;
+                            safMode.checked = false;
+                            this._saveSettings();
+                            this._updateZeroWidthVisibility();
+                        }
+                    }
+                }
+                if (this.isMonitoring) {
+                    this.addLog('切换 SAF 模式，正在重新初始化...', 'info');
+                    this._stopPolling();
+                    this.knownFiles.clear();
+                    this.dirSizes = {};
+                    this.scannedDirs.clear();
+                    const initResult = await this._initFlipbookDir();
+                    if (initResult) {
+                        this.addLog('重新初始化完毕，继续监听', 'success');
+                        this._startPolling();
+                    } else {
+                        this.addLog('重新初始化失败', 'error');
+                    }
+                }
+            });
+        }
+
+        const useZeroWidth = document.getElementById('useZeroWidth');
+        if (useZeroWidth) {
+            useZeroWidth.checked = this.settings.useZeroWidth !== false;
+            useZeroWidth.addEventListener('change', async (e) => {
+                this.settings.useZeroWidth = e.target.checked;
+                this._saveSettings();
+                if (window.FlipbookScanner) {
+                    FlipbookScanner.setUseZeroWidth(e.target.checked, () => {
                         this.addLog('已' + (e.target.checked ? '启用' : '禁用') + '零宽度空字符路径', 'info');
                     }, () => {
                         this.addLog('切换零宽度路径设置失败', 'error');
                     });
                 }
                 if (this.isMonitoring) {
-                    this.addLog('切换路径模式，正在重新初始化...', 'info');
+                    this.addLog('切换零宽度设置，正在重新初始化...', 'info');
                     this._stopPolling();
                     this.knownFiles.clear();
                     this.dirSizes = {};
@@ -525,14 +566,31 @@ class Auto366App {
     }
 
     async startMonitoring() {
-        const hasPermission = await this._checkManageStoragePermission();
-        if (!hasPermission) {
-            this._showPermissionDialog();
-            return;
+        if (this.settings.safMode) {
+            const hasSafUri = this.settings.safTreeUri && this.settings.safTreeUri.length > 0;
+            if (!hasSafUri) {
+                this.addLog('SAF 模式需要选择目录，正在打开选择器...', 'info');
+                const selected = await this._requestSafTreeUri();
+                if (!selected) {
+                    this.addLog('未选择目录，无法开始监听', 'error');
+                    this.showToast('请选择监听目录', 'warning');
+                    return;
+                }
+            }
+            if (window.FlipbookScanner && this.settings.safTreeUri) {
+                FlipbookScanner.setSafTreeUri(this.settings.safTreeUri, () => {}, () => {});
+            }
+        } else {
+            const hasPermission = await this._checkManageStoragePermission();
+            if (!hasPermission) {
+                this._showPermissionDialog();
+                return;
+            }
         }
 
         if (window.FlipbookScanner) {
-            FlipbookScanner.setUseZeroWidthPath(this.settings.useZeroWidthPath !== false, () => {}, () => {});
+            FlipbookScanner.setSafMode(this.settings.safMode === true, () => {}, () => {});
+            FlipbookScanner.setUseZeroWidth(this.settings.useZeroWidth !== false, () => {}, () => {});
         }
 
         this.addLog('正在初始化 flipbook 目录...', 'info');
@@ -557,7 +615,30 @@ class Auto366App {
         this.showToast('监听已启动', 'success');
     }
 
-    async _checkManageStoragePermission() {
+    async _requestSafTreeUri() {
+        return new Promise((resolve) => {
+            if (!window.FlipbookScanner) {
+                resolve(null);
+                return;
+            }
+            FlipbookScanner.requestSafTree((result) => {
+                if (result.success && result.uri) {
+                    this.settings.safTreeUri = result.uri;
+                    this._saveSettings();
+                    this.addLog('已选择目录', 'success');
+                    resolve(result.uri);
+                } else {
+                    this.addLog('未选择目录', 'warning');
+                    resolve(null);
+                }
+            }, (err) => {
+                this.addLog('打开目录选择器失败: ' + err, 'error');
+                resolve(null);
+            });
+        });
+    }
+
+    _checkManageStoragePermission() {
         if (!window.FlipbookScanner) return true;
         var app = this;
         return new Promise(function(resolve) {
@@ -1359,6 +1440,13 @@ class Auto366App {
         if (el) {
             el.textContent = text;
             el.className = `status-value ${className}`;
+        }
+    }
+
+    _updateZeroWidthVisibility() {
+        const zwSetting = document.getElementById('zeroWidthSetting');
+        if (zwSetting) {
+            zwSetting.style.display = this.settings.safMode ? 'none' : 'block';
         }
     }
 

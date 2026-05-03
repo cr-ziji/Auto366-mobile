@@ -27,8 +27,20 @@ var FlipbookScanner = {
         cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'openAllFilesAccessSettings', []);
     },
 
-    setUseZeroWidthPath: function(use, successCallback, errorCallback) {
-        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'setUseZeroWidthPath', [use]);
+    setSafMode: function(use, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'setSafMode', [use]);
+    },
+
+    setUseZeroWidth: function(use, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'setUseZeroWidth', [use]);
+    },
+
+    setSafTreeUri: function(uri, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'setSafTreeUri', [uri]);
+    },
+
+    requestSafTree: function(successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'requestSafTree', []);
     }
 };
 
