@@ -9,6 +9,8 @@ class Auto366App {
         this.extractor = new AnswerExtractor();
         this.pollTimer = null;
         this.knownFiles = new Set();
+        this.dirSizes = {};
+        this.scannedDirs = new Set();
         this.flipbookDirEntry = null;
         this.settings = {
             flipbookPath: '/storage/emulated/0/Android/data/com.up366.mobile/files/flipbook',
@@ -646,22 +648,124 @@ class Auto366App {
         try {
             const entries = await this._listFlipbookFiles(this.flipbookDirPath);
             if (!entries) return;
+
+            var newDirSizes = {};
             for (const entry of entries) {
                 const name = entry.name;
-                if (!this.knownFiles.has(name)) {
+                if (!entry.isDirectory) continue;
+
+                var currentSize = await this._getDirTotalSize(entry.path);
+
+                newDirSizes[name] = currentSize;
+
+                const prevSize = this.dirSizes[name];
+                if (prevSize === undefined) {
                     this.knownFiles.add(name);
-                    this.addLog('检测到新文件: ' + name, 'important');
-                    if (entry.isDirectory) {
-                        this.addLog('发现新目录: ' + name, 'info');
-                        setTimeout(() => {
-                            this._scanNewDirectoryNative(entry);
-                        }, 3000);
-                    }
+                    this.addLog('发现新目录: ' + name, 'info');
+                }
+
+                if (currentSize > prevSize) {
+                    this.addLog('目录 ' + name + ' 大小变化: ' + prevSize + ' -> ' + currentSize, 'info');
+                    this.scannedDirs.delete(name);
+                    this._scanDirFiles(entry, []);
                 }
             }
+            this.dirSizes = newDirSizes;
         } catch (error) {
             console.error('Poll error:', error);
         }
+    }
+
+    async _getDirTotalSize(dirPath) {
+        var app = this;
+        return new Promise((resolve) => {
+            FlipbookScanner.listFiles(dirPath, (entries) => {
+                var totalSize = 0;
+                var subDirPromises = [];
+                if (entries) {
+                    for (const e of entries) {
+                        if (e.isFile) {
+                            totalSize += e.size || 0;
+                        } else if (e.isDirectory) {
+                            subDirPromises.push(app._getDirTotalSize(e.path));
+                        }
+                    }
+                }
+                Promise.all(subDirPromises).then((sizes) => {
+                    sizes.forEach(s => totalSize += s);
+                    resolve(totalSize);
+                });
+            }, () => resolve(0));
+        });
+    }
+
+    _scanDirFiles(entry, filesInDir) {
+        var app = this;
+        app.extractor.flipbookScanner = FlipbookScanner;
+
+        app.extractor.extractAnswers(entry.path, FlipbookScanner, function(msg, type) {
+            app.addLog(msg, type);
+        }).then((finalAnswers) => {
+            if (finalAnswers.length > 0) {
+                app.answers.push(...finalAnswers.map(a => ({
+                    ...a,
+                    timestamp: Date.now()
+                })));
+                app._updateStatus('answerCount', String(app.answers.length), 'running');
+                app._renderAnswers();
+                app._updateFloatingWindow();
+                app.showNotification('answer');
+            }
+        }).catch((error) => {
+            app.addLog('答案解析失败: ' + error.message, 'error');
+        });
+    }
+
+    _collectAllFilesRecursive(dirPath, relPath, u3encFiles, otherFiles, callback) {
+        var app = this;
+        this.addLog('递归扫描: ' + dirPath, 'info');
+        FlipbookScanner.listFiles(dirPath, (entries) => {
+            app.addLog('扫描返回 ' + (entries ? entries.length : 0) + ' 个条目', 'info');
+            if (!entries || entries.length === 0) {
+                callback();
+                return;
+            }
+            var pending = 0;
+            var hasSubDirs = false;
+            for (const entry of entries) {
+                const fullRelPath = relPath ? relPath + '/' + entry.name : entry.name;
+                if (entry.isDirectory) {
+                    hasSubDirs = true;
+                    pending++;
+                    app.addLog('  子目录: ' + entry.name, 'info');
+                    this._collectAllFilesRecursive(entry.path, fullRelPath, u3encFiles, otherFiles, function() {
+                        pending--;
+                        if (pending === 0) {
+                            app.addLog('收集完毕: ' + u3encFiles.length + ' u3enc, ' + otherFiles.length + ' 其他', 'info');
+                            callback();
+                        }
+                    });
+                } else if (entry.isFile) {
+                    const lowerName = entry.name.toLowerCase();
+                    if (lowerName.endsWith('.u3enc')) {
+                        u3encFiles.push({ name: entry.name, path: entry.path, relativePath: fullRelPath });
+                        app.addLog('  u3enc文件: ' + entry.name, 'info');
+                    } else if (lowerName.endsWith('.json') || lowerName.endsWith('.js') || lowerName.endsWith('.xml') || lowerName.endsWith('.txt')) {
+                        otherFiles.push({ name: entry.name, path: entry.path, relativePath: fullRelPath });
+                        app.addLog('  其他文件: ' + entry.name, 'info');
+                    } else {
+                        app.addLog('  跳过: ' + entry.name, 'info');
+                    }
+                }
+            }
+            if (!hasSubDirs && pending === 0) {
+                app.addLog('收集完毕: ' + u3encFiles.length + ' u3enc, ' + otherFiles.length + ' 其他', 'info');
+                callback();
+            }
+        }, (error) => {
+            app.addLog('listFiles 错误: ' + error, 'error');
+            callback();
+        });
     }
 
     _listFlipbookFiles(path) {

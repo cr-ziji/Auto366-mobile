@@ -36,11 +36,7 @@ class CryptoManager {
     }
 
     arrayBufferToString(uint8Array) {
-        let str = '';
-        for (let i = 0; i < uint8Array.length; i++) {
-            str += String.fromCharCode(uint8Array[i]);
-        }
-        return str;
+        return new TextDecoder('utf-8').decode(uint8Array);
     }
 }
 

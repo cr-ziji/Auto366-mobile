@@ -13,11 +13,13 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
 import android.content.Intent;
 import android.net.Uri;
 import android.provider.Settings;
 import android.app.Activity;
+import android.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +30,7 @@ public class FlipbookScanner extends CordovaPlugin {
     private static final String ACTION_CHECK_PERMISSION = "checkPermission";
     private static final String ACTION_LIST_FILES = "listFiles";
     private static final String ACTION_READ_FILE = "readFile";
+    private static final String ACTION_READ_BINARY = "readBinaryFile";
     private static final String ACTION_CLEAR_DIR = "clearDirectory";
     private static final String ACTION_ENSURE_DIR = "ensureDirectory";
     private static final String ACTION_OPEN_SETTINGS = "openAllFilesAccessSettings";
@@ -52,6 +55,9 @@ public class FlipbookScanner extends CordovaPlugin {
                 return true;
             case ACTION_READ_FILE:
                 readFile(args.getString(0), callbackContext);
+                return true;
+            case ACTION_READ_BINARY:
+                readBinaryFile(args.getString(0), callbackContext);
                 return true;
             case ACTION_CLEAR_DIR:
                 clearDirectory(args.getString(0), callbackContext);
@@ -176,6 +182,35 @@ public class FlipbookScanner extends CordovaPlugin {
                 callbackContext.success(result);
             } catch (IOException e) {
                 Log.e(TAG, "Read file IO error: " + e.getMessage());
+                callbackContext.error("Read error: " + e.getMessage());
+            } catch (JSONException e) {
+                callbackContext.error("JSON error: " + e.getMessage());
+            }
+        });
+    }
+
+    private void readBinaryFile(String path, CallbackContext callbackContext) {
+        cordova.getThreadPool().execute(() -> {
+            String actualPath = bypassPath(path);
+            File file = new File(actualPath);
+            Log.i(TAG, "Read binary file: " + actualPath);
+            if (!file.exists() || !file.isFile()) {
+                callbackContext.error("File does not exist: " + path);
+                return;
+            }
+            try {
+                FileInputStream fis = new FileInputStream(file);
+                byte[] data = new byte[(int) file.length()];
+                fis.read(data);
+                fis.close();
+                String base64 = Base64.encodeToString(data, Base64.NO_WRAP);
+                Log.i(TAG, "Read binary file size: " + data.length + ", base64 length: " + base64.length());
+                JSONObject result = new JSONObject();
+                result.put("base64", base64);
+                result.put("size", file.length());
+                result.put("path", file.getAbsolutePath().replace(ZERO_WIDTH_SPACE, ""));
+                callbackContext.success(result);
+            } catch (IOException e) {
                 callbackContext.error("Read error: " + e.getMessage());
             } catch (JSONException e) {
                 callbackContext.error("JSON error: " + e.getMessage());

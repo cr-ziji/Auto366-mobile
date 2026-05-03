@@ -1,20 +1,70 @@
 class AnswerExtractor {
     constructor() {
         this.cryptoManager = new CryptoManager();
+        this.flipbookScanner = null;
+    }
+
+    _readFile(path) {
+        var app = this;
+        return new Promise(async (resolve) => {
+            if (!app.flipbookScanner) {
+                resolve(null);
+                return;
+            }
+            if (path.toLowerCase().endsWith('.u3enc')) {
+                app.flipbookScanner.readBinaryFile(path, async (result) => {
+                    if (result && result.base64) {
+                        try {
+                            var binaryString = atob(result.base64);
+                            var bytes = new Uint8Array(binaryString.length);
+                            for (var i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            var decryptedBuffer = await app.cryptoManager.decryptU3enc(bytes);
+                            if (decryptedBuffer) {
+                                var decryptedText = app.cryptoManager.arrayBufferToString(decryptedBuffer);
+                                if (decryptedText && decryptedText.length > 0) {
+                                    resolve({ content: decryptedText, size: result.size });
+                                } else {
+                                    resolve(null);
+                                }
+                            } else {
+                                resolve(null);
+                            }
+                        } catch (e) {
+                            console.error('_readFile decrypt error:', e);
+                            resolve(null);
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                }, () => resolve(null));
+            } else {
+                app.flipbookScanner.readFile(path, (result) => resolve(result), () => resolve(null));
+            }
+        });
     }
 
     cleanHtmlText(text) {
         if (!text || typeof text !== 'string') return '';
-        return text
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&apos;/g, "'")
-            .replace(/&nbsp;/g, ' ')
-            .replace(/<[^>]+>/g, '')
-            .replace(/\\/g, '')
-            .trim();
+        try {
+            return text
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&apos;/g, "'")
+                .replace(/&nbsp;/g, ' ')
+                .replace(/<[^>]+>/g, '')
+                .replace(/\\n/g, '\n')
+                .replace(/\\t/g, ' ')
+                .replace(/\\"/g, '"')
+                .replace(/\\'/g, "'")
+                .replace(/\\\\/g, '\\')
+                .trim();
+        } catch (e) {
+            return text.replace(/<[^>]+>/g, '').trim();
+        }
     }
 
     _extractJsonFromPageConfig(content) {
@@ -51,9 +101,9 @@ class AnswerExtractor {
 
             for (const slide of pageConfig.slides) {
                 const questionList = slide.questionList || [];
+
                 for (const question of questionList) {
                     const qtypeId = question.qtype_id;
-                    const mediaIndex = this._extractMediaIndexFromContent(question.media?.file || '');
 
                     if (question.answer_text && question.options && question.options.length > 0) {
                         const correctOption = question.options.find(opt => opt.id === question.answer_text);
@@ -65,8 +115,8 @@ class AnswerExtractor {
                                 answer: `${question.answer_text}. ${answerContent}`,
                                 content: `请回答: ${question.answer_text}. ${answerContent}`,
                                 questionText: questionText,
-                                pattern: '听后选择',
-                                mediaIndex: mediaIndex
+                                pattern: '听后选择-整体',
+                                mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                             });
                         }
                     }
@@ -92,7 +142,8 @@ class AnswerExtractor {
                     }
 
                     if (qtypeId === 237 && question.record_speak && question.record_speak.length > 0) {
-                        const correctAnswers = question.record_speak.filter(item => item.work === "1" && item.show === "1");
+                        const speakList = question.record_speak;
+                        const correctAnswers = speakList.filter(item => item.work === "1" && item.show === "1");
                         for (const item of correctAnswers) {
                             if (item.content && item.content.trim()) {
                                 const questionText = this.cleanHtmlText(question.question_text || '口语跟读');
@@ -103,7 +154,7 @@ class AnswerExtractor {
                                     content: `请回答: ${answerContent}`,
                                     questionText: questionText,
                                     pattern: '口语跟读',
-                                    mediaIndex: mediaIndex
+                                    mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                                 });
                             }
                         }
@@ -118,7 +169,7 @@ class AnswerExtractor {
                                 content: `请朗读: ${analysisText}`,
                                 questionText: analysisText.substring(0, 50) + (analysisText.length > 50 ? '...' : ''),
                                 pattern: '朗读',
-                                mediaIndex: mediaIndex
+                                mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                             });
                         }
                     }
@@ -138,7 +189,7 @@ class AnswerExtractor {
                                 content: `请复述: ${firstAnswer.trim()}`,
                                 questionText: questionText,
                                 pattern: '故事复述',
-                                mediaIndex: mediaIndex
+                                mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                             });
                         }
                     }
@@ -153,12 +204,13 @@ class AnswerExtractor {
                                     content: `请回答: ${analysisText}`,
                                     questionText: this.cleanHtmlText(question.question_text || '听力填空'),
                                     pattern: '听力填空',
-                                    mediaIndex: mediaIndex
+                                    mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                                 });
                             }
-                        } else if (question.record_follow_read?.paragraph_list) {
+                        } else if (question.record_follow_read && question.record_follow_read.paragraph_list) {
                             for (const para of question.record_follow_read.paragraph_list) {
-                                for (const sent of (para.sentences || [])) {
+                                const sentences = para.sentences || [];
+                                for (const sent of sentences) {
                                     if (sent.keyNo && sent.content_en) {
                                         const boldMatch = sent.content_en.match(/<b>([^<]+)<\/b>/);
                                         const answerText = boldMatch ? boldMatch[1] : this.cleanHtmlText(sent.content_en);
@@ -169,7 +221,7 @@ class AnswerExtractor {
                                                 content: `请回答: ${answerText.trim()}`,
                                                 questionText: answerText.trim(),
                                                 pattern: '听力填空',
-                                                mediaIndex: mediaIndex
+                                                mediaIndex: this._extractMediaIndexFromContent(question.media?.file || '')
                                             });
                                         }
                                     }
@@ -181,7 +233,7 @@ class AnswerExtractor {
             }
             return answers;
         } catch (error) {
-            console.error('extractFromPage1 failed:', error);
+            console.error('_extractFromPage1 failed:', error);
             return [];
         }
     }
@@ -210,6 +262,140 @@ class AnswerExtractor {
             }
         }
         return deduplicated;
+    }
+
+    async extractAnswers(dirPath, fileScanner, logCallback = null) {
+        var app = this;
+        var allAnswers = [];
+        var page1Answers = [];
+        var otherAnswers = [];
+        var page1Processed = false;
+
+        var u3encFiles = [];
+        var answerFiles = [];
+        await app._collectAllFilesByType(dirPath, u3encFiles, answerFiles);
+
+        if (logCallback) logCallback('找到 ' + u3encFiles.length + ' 个 u3enc 文件, ' + answerFiles.length + ' 个答案文件', 'info');
+
+        for (const file of u3encFiles) {
+            try {
+                if (logCallback) logCallback('正在处理 u3enc: ' + file.name, 'info');
+                var fileData = await app._readFile(file.path);
+                if (!fileData || !fileData.content) {
+                    if (logCallback) logCallback(file.name + ': 解密失败或内容为空', 'error');
+                    continue;
+                }
+                if (logCallback) logCallback(file.name + ': 解密成功，内容长度: ' + fileData.content.length, 'info');
+
+                var jsonStr = app._extractJsonFromPageConfig(fileData.content);
+                if (jsonStr) {
+                    if (logCallback) logCallback(file.name + ': 提取到 pageConfig JSON，长度: ' + jsonStr.length, 'info');
+                    var pageConfig = JSON.parse(jsonStr);
+                    var fileAnswers = app._extractFromPage1(pageConfig);
+                    page1Answers.push(...fileAnswers.map(a => ({
+                        ...a,
+                        sourceFile: file.name
+                    })));
+                    if (logCallback) logCallback(file.name + ': 提取 ' + fileAnswers.length + ' 个答案 (pageConfig)', 'success');
+                } else {
+                    if (logCallback) logCallback(file.name + ': 未找到 pageConfig JSON', 'warning');
+                    if (logCallback) logCallback(file.name + ': 内容预览: ' + fileData.content.substring(0, 300), 'info');
+                }
+
+                var normalAnswers = await app.processFileContent(fileData.content, file.name.toLowerCase(), file.relativePath);
+                if (normalAnswers.length > 0) {
+                    otherAnswers.push(...normalAnswers.map(a => ({
+                        ...a,
+                        sourceFile: file.name
+                    })));
+                    if (logCallback) logCallback(file.name + ': 提取 ' + normalAnswers.length + ' 个答案 (常规)', 'success');
+                }
+                page1Processed = true;
+            } catch (error) {
+                if (logCallback) logCallback(file.name + ': 处理失败 - ' + error.message, 'error');
+            }
+        }
+
+        for (const file of answerFiles) {
+            try {
+                var fileData = await app._readFile(file.path);
+                if (!fileData || !fileData.content) continue;
+
+                var fileAnswers = await app.processFileContent(fileData.content, file.name.toLowerCase(), file.relativePath);
+                if (fileAnswers.length > 0) {
+                    otherAnswers.push(...fileAnswers.map(a => ({
+                        ...a,
+                        sourceFile: file.name
+                    })));
+                    if (logCallback) logCallback(file.name + ': ' + fileAnswers.length + ' 个答案', 'success');
+                }
+            } catch (error) {
+                if (logCallback) logCallback(file.name + ': 处理失败 - ' + error.message, 'error');
+            }
+        }
+
+        allAnswers.push(...page1Answers, ...otherAnswers);
+
+        var sourceMode;
+        if (page1Answers.length > 0 && otherAnswers.length > 0) {
+            sourceMode = 'mixed';
+        } else if (page1Answers.length > 0) {
+            sourceMode = 'page1';
+        } else if (otherAnswers.length > 0) {
+            sourceMode = 'fallback';
+        } else {
+            sourceMode = 'none';
+        }
+
+        var finalAnswers = app._sortAndDeduplicateAnswers(allAnswers, sourceMode);
+
+        if (logCallback) {
+            if (finalAnswers.length > 0) {
+                logCallback('共提取到 ' + finalAnswers.length + ' 个答案 (来源: ' + sourceMode + ')', 'success');
+            } else {
+                logCallback('未找到答案', 'warning');
+            }
+        }
+
+        return finalAnswers;
+    }
+
+    async _collectAllFilesByType(dirPath, u3encFiles, answerFiles) {
+        var app = this;
+        return new Promise((resolve) => {
+            if (!app.flipbookScanner) {
+                resolve();
+                return;
+            }
+            app.flipbookScanner.listFiles(dirPath, (entries) => {
+                if (!entries || entries.length === 0) {
+                    resolve();
+                    return;
+                }
+                var pending = 0;
+                for (const entry of entries) {
+                    const lowerName = entry.name.toLowerCase();
+                    const relPath = entry.name;
+
+                    if (entry.isDirectory) {
+                        pending++;
+                        app._collectAllFilesByType(entry.path, u3encFiles, answerFiles).then(function() {
+                            pending--;
+                            if (pending === 0) resolve();
+                        });
+                    } else if (entry.isFile) {
+                        if (lowerName.endsWith('.u3enc')) {
+                            u3encFiles.push({ name: entry.name, path: entry.path, relativePath: relPath });
+                        } else if (lowerName.endsWith('.json') || lowerName.endsWith('.js') || lowerName.endsWith('.xml') || lowerName.endsWith('.txt')) {
+                            if (lowerName.includes('answer') || lowerName.includes('paper') || lowerName.includes('question') || lowerName.includes('questiondata')) {
+                                answerFiles.push({ name: entry.name, path: entry.path, relativePath: relPath });
+                            }
+                        }
+                    }
+                }
+                if (pending === 0) resolve();
+            }, () => resolve());
+        });
     }
 
     _detectExactType(questionObj) {
@@ -426,7 +612,12 @@ class AnswerExtractor {
     _parseQuestionFile(fileContent, mediaIndex) {
         try {
             const config = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
-            const questionObj = config.questionObj || {};
+            let questionObj = config.questionObj || {};
+            if (!questionObj.questions_list && !questionObj.record_speak && !questionObj.answer_text && !questionObj.options) {
+                if (config.questions_list || config.record_speak || config.answer_text || config.options) {
+                    questionObj = config;
+                }
+            }
             const detectedType = this._detectExactType(questionObj);
             switch (detectedType) {
                 case '听后选择': return this._parseChoiceQuestions(questionObj, mediaIndex);
@@ -440,7 +631,7 @@ class AnswerExtractor {
         }
     }
 
-    extractFromJSON(content) {
+    extractFromJSON(content, filePath = '') {
         const answers = [];
         const mediaIndex = this._extractMediaIndexFromContent(content);
         try {
@@ -478,6 +669,9 @@ class AnswerExtractor {
             if (jsonData.questionObj) {
                 answers.push(...this._parseQuestionFile(jsonData, mediaIndex));
             }
+            if (jsonData.questions_list || jsonData.record_speak || jsonData.answer_text) {
+                answers.push(...this._parseQuestionFile({ questionObj: jsonData }, mediaIndex));
+            }
             if (Array.isArray(jsonData.answers)) {
                 jsonData.answers.forEach((answer, index) => {
                     if (answer && (typeof answer === 'string' || (typeof answer === 'object' && answer.content))) {
@@ -512,7 +706,7 @@ class AnswerExtractor {
         return answers;
     }
 
-    extractFromJS(content) {
+    extractFromJS(content, filePath = '') {
         try {
             let jsonData;
             try { jsonData = JSON.parse(content); } catch (e) { return []; }
@@ -523,20 +717,28 @@ class AnswerExtractor {
         }
     }
 
-    extractFromXML(content, fileName) {
+    extractFromXML(content, fileName = '', filePath = '') {
         const answers = [];
         try {
-            if (fileName && fileName.toLowerCase().includes('correctanswer')) {
+            const isCorrectAnswer = (fileName && fileName.toLowerCase().includes('correctanswer')) ||
+                (filePath && filePath.toLowerCase().includes('correctanswer'));
+
+            const isPaper = (fileName && fileName.toLowerCase().includes('paper')) ||
+                (filePath && filePath.toLowerCase().includes('paper'));
+
+            if (isCorrectAnswer) {
                 const elementMatches = [...content.matchAll(/<element\s+id="([^"]+)"[^>]*>(.*?)<\/element>/gs)];
                 elementMatches.forEach((elementMatch, index) => {
                     const elementId = elementMatch[1];
                     const elementContent = elementMatch[2];
                     if (!elementContent.trim()) return;
+
                     let analysisText = '';
                     const analysisMatch = elementContent.match(/<analysis>\s*<!\[CDATA\[(.*?)]]>\s*<\/analysis>/s);
                     if (analysisMatch && analysisMatch[1]) {
                         analysisText = this.cleanHtmlText(analysisMatch[1]);
                     }
+
                     const answersMatch = elementContent.match(/<answers>\s*<!\[CDATA\[([^\]]+)]]>\s*<\/answers>/);
                     if (answersMatch && answersMatch[1]) {
                         answers.push({
@@ -572,18 +774,23 @@ class AnswerExtractor {
                     }
                 });
             }
-            if (fileName && fileName.toLowerCase().includes('paper')) {
+
+            if (isPaper) {
                 const elementMatches = [...content.matchAll(/<element[^>]*id="([^"]+)"[^>]*>(.*?)<\/element>/gs)];
                 elementMatches.forEach((elementMatch) => {
                     const elementId = elementMatch[1];
                     const elementContent = elementMatch[2];
+
                     const questionNoMatch = elementContent.match(/<question_no>(\d+)<\/question_no>/);
                     const questionTextMatch = elementContent.match(/<question_text>\s*<!\[CDATA\[(.*?)]]>\s*<\/question_text>/s);
+
                     if (questionNoMatch && questionTextMatch) {
                         const questionNo = parseInt(questionNoMatch[1]);
                         let questionText = this.cleanHtmlText(questionTextMatch[1]).replace(/\{\{\d+\}\}/g, ' ');
+
                         const optionsMatches = [...elementContent.matchAll(/<option\s+id="([^"]+)"\s*[^>]*>\s*<!\[CDATA\[(.*?)]]>\s*<\/option>/gs)];
                         const options = optionsMatches.map(m => ({ id: m[1], text: m[2].trim() }));
+
                         answers.push({
                             question: `第${questionNo}题`,
                             answer: questionText,
@@ -633,18 +840,18 @@ class AnswerExtractor {
         return answers;
     }
 
-    async processFileContent(content, fileName) {
+    async processFileContent(content, fileName, filePath = '') {
         const answers = [];
         try {
             if (fileName.endsWith('.json')) {
-                return this.extractFromJSON(content);
+                return this.extractFromJSON(content, filePath);
             } else if (fileName.endsWith('.js')) {
                 if (fileName.endsWith('.u3enc')) {
                     return [];
                 }
-                return this.extractFromJS(content);
+                return this.extractFromJS(content, filePath);
             } else if (fileName.endsWith('.xml')) {
-                return this.extractFromXML(content, fileName);
+                return this.extractFromXML(content, fileName, filePath);
             } else if (fileName.endsWith('.txt')) {
                 return this.extractFromText(content);
             }

@@ -11,6 +11,10 @@ var FlipbookScanner = {
         cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'readFile', [path]);
     },
 
+    readBinaryFile: function(path, successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'readBinaryFile', [path]);
+    },
+
     clearDirectory: function(path, successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'clearDirectory', [path]);
     },
