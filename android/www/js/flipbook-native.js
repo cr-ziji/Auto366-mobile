@@ -41,6 +41,10 @@ var FlipbookScanner = {
 
     requestSafTree: function(successCallback, errorCallback) {
         cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'requestSafTree', []);
+    },
+
+    enterPipMode: function(successCallback, errorCallback) {
+        cordova.exec(successCallback, errorCallback, 'FlipbookScanner', 'enterPipMode', []);
     }
 };
 

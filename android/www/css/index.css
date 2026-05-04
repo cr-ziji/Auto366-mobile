@@ -934,57 +934,96 @@ body {
     font-size: 16px;
 }
 
-.floating-window {
+/* PiP 窗口 */
+.pip-window {
     position: fixed;
-    bottom: 80px;
-    right: 16px;
-    width: 280px;
-    max-height: 360px;
-    background: var(--surface);
-    border-radius: var(--radius);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    z-index: 2000;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #F5F5F5;
+    z-index: 9999;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--border);
+    border-radius: 16px;
 }
 
-.float-header {
+.pip-empty {
+    flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
-    background: var(--primary);
-    color: #FFFFFF;
-    cursor: move;
+    justify-content: center;
+    padding: 20px;
+    color: #9E9E9E;
+    gap: 8px;
 }
 
-.float-title {
-    font-size: 14px;
-    font-weight: 600;
+.pip-empty i {
+    font-size: 28px;
+    opacity: 0.4;
 }
 
-.float-expand-btn {
-    background: none;
-    border: none;
-    color: #FFFFFF;
-    font-size: 16px;
-    padding: 4px;
-    cursor: pointer;
-    opacity: 0.8;
-    transition: opacity var(--duration) var(--ease);
+.pip-empty span {
+    font-size: 12px;
 }
 
-.float-expand-btn:active {
-    opacity: 1;
-}
-
-.float-body {
+.pip-answers {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    max-height: 300px;
+    padding: 8px;
+}
+
+.pip-answer-item {
+    background: #FFFFFF;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.pip-answer-type {
+    font-size: 10px;
+    color: #1976D2;
+    font-weight: 600;
+    margin-bottom: 4px;
+    padding: 2px 6px;
+    background: #E3F2FD;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.pip-answer-q {
+    font-size: 12px;
+    color: #333333;
+    font-weight: 500;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.pip-answer-a {
+    font-size: 11px;
+    color: #666666;
+    line-height: 1.4;
+    padding-left: 8px;
+    border-left: 2px solid #E3F2FD;
+}
+
+/* PiP 模式隐藏其他元素 */
+#app.pip-mode .header,
+#app.pip-mode .side-menu,
+#app.pip-mode .menu-overlay,
+#app.pip-mode .main-content,
+#app.pip-mode .bottom-nav,
+#app.pip-mode .settings-card {
+    display: none !important;
+}
+
+/* 非PiP模式下隐藏浮窗 */
+.floating-window {
+    display: none !important;
 }
 
 .float-empty {
@@ -992,22 +1031,22 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 30px 20px;
+    padding: 20px 14px;
     color: var(--text-secondary);
-    gap: 8px;
+    gap: 6px;
 }
 
 .float-empty i {
-    font-size: 24px;
+    font-size: 20px;
     opacity: 0.5;
 }
 
 .float-empty span {
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .float-answer-item {
-    padding: 10px 14px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
     transition: background var(--duration) var(--ease);
@@ -1311,6 +1350,26 @@ body {
 
 .dark-mode .floating-window {
     border-color: #2A2A2A;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.dark-mode .floating-window.pip-mode {
+    border-color: #3B82F6;
+    box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+}
+
+.dark-mode .floating-window.pip-mode .float-controls {
+    background: #1E1E1E;
+    border-top-color: #2A2A2A;
+}
+
+.dark-mode .floating-window.pip-mode .float-control-btn {
+    background: #3B82F6;
+}
+
+.dark-mode .floating-window.pip-mode .float-control-btn:active {
+    background: #2563EB;
+}
 }
 
 @supports (padding: max(0px)) {

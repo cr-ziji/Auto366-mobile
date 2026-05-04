@@ -44,6 +44,7 @@ public class FlipbookScanner extends CordovaPlugin {
     private static final String ACTION_SET_USE_ZERO_WIDTH = "setUseZeroWidth";
     private static final String ACTION_SET_SAF_URI = "setSafTreeUri";
     private static final String ACTION_REQUEST_SAF_TREE = "requestSafTree";
+    private static final String ACTION_ENTER_PIP = "enterPipMode";
 
     private boolean safMode = false;
     private boolean useZeroWidth = true;
@@ -97,6 +98,9 @@ public class FlipbookScanner extends CordovaPlugin {
                 return true;
             case ACTION_REQUEST_SAF_TREE:
                 requestSafTree(callbackContext);
+                return true;
+            case ACTION_ENTER_PIP:
+                enterPipMode(callbackContext);
                 return true;
         }
         return false;
@@ -417,6 +421,24 @@ public class FlipbookScanner extends CordovaPlugin {
             }
             this.safTreeCallbackContext = callbackContext;
             this.cordova.startActivityForResult(this, intent, 100);
+        });
+    }
+
+    private void enterPipMode(CallbackContext callbackContext) {
+        cordova.getThreadPool().execute(() -> {
+            try {
+                Activity activity = this.cordova.getActivity();
+                if (activity instanceof com.auto366.mobile.MainActivity) {
+                    ((com.auto366.mobile.MainActivity) activity).enterPipMode();
+                    JSONObject result = new JSONObject();
+                    result.put("success", true);
+                    callbackContext.success(result);
+                } else {
+                    callbackContext.error("Not MainActivity");
+                }
+            } catch (Exception e) {
+                callbackContext.error(e.getMessage());
+            }
         });
     }
 

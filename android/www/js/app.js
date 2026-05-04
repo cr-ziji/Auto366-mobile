@@ -19,7 +19,8 @@ class Auto366App {
             autoStart: false,
             darkMode: null,
             safMode: false,
-            useZeroWidth: true
+            useZeroWidth: true,
+            autoPipMode: false
         };
     }
 
@@ -240,6 +241,25 @@ class Auto366App {
             });
         }
 
+        const autoPipMode = document.getElementById('autoPipMode');
+        if (autoPipMode) {
+            autoPipMode.checked = this.settings.autoPipMode === true;
+            autoPipMode.addEventListener('change', (e) => {
+                this.settings.autoPipMode = e.target.checked;
+                this._saveSettings();
+            });
+        }
+
+        const enterPipBtn = document.getElementById('enterPipBtn');
+        if (enterPipBtn) {
+            enterPipBtn.addEventListener('click', () => this._enterPipMode());
+        }
+
+        const exitPipBtn = document.getElementById('exitPipBtn');
+        if (exitPipBtn) {
+            exitPipBtn.addEventListener('click', () => this._exitPipMode());
+        }
+
         const pollIntervalInput = document.getElementById('pollIntervalInput');
         if (pollIntervalInput) {
             pollIntervalInput.value = this.settings.pollInterval;
@@ -336,7 +356,7 @@ class Auto366App {
             });
         }
 
-        this._initFloatingWindow();
+        this._initPipMode();
     }
 
     _initSwipeGestures() {
@@ -450,58 +470,27 @@ class Auto366App {
         }, { passive: true });
     }
 
-    _initFloatingWindow() {
-        const floatHeader = document.getElementById('floatHeader');
-        const floatExpandBtn = document.getElementById('floatExpandBtn');
-        const floatingWindow = document.getElementById('floatingWindow');
+    _initPipMode() {
+    }
 
-        if (floatExpandBtn) {
-            floatExpandBtn.addEventListener('click', () => this.hideFloatingWindow());
+    _onPipScroll(direction) {
+        const pipAnswers = document.getElementById('pipAnswers');
+        if (!pipAnswers || pipAnswers.style.display === 'none') return;
+
+        if (direction === 'up') {
+            pipAnswers.scrollTop = Math.max(0, pipAnswers.scrollTop - 100);
+        } else if (direction === 'down') {
+            pipAnswers.scrollTop = Math.min(pipAnswers.scrollHeight - pipAnswers.clientHeight, pipAnswers.scrollTop + 100);
         }
+    }
 
-        if (floatHeader) {
-            let lastTap = 0;
-            floatHeader.addEventListener('click', (e) => {
-                if (e.target.closest('.float-expand-btn')) return;
-                const now = Date.now();
-                if (now - lastTap < 300) {
-                    this.hideFloatingWindow();
-                }
-                lastTap = now;
-            });
-        }
-
-        if (floatHeader && floatingWindow) {
-            let isDragging = false;
-            let offsetX = 0, offsetY = 0;
-
-            floatHeader.addEventListener('touchstart', (e) => {
-                if (e.target.closest('.float-expand-btn')) return;
-                isDragging = true;
-                const touch = e.touches[0];
-                const rect = floatingWindow.getBoundingClientRect();
-                offsetX = touch.clientX - rect.left;
-                offsetY = touch.clientY - rect.top;
-                floatingWindow.style.transition = 'none';
-            }, { passive: true });
-
-            floatHeader.addEventListener('touchmove', (e) => {
-                if (!isDragging) return;
-                const touch = e.touches[0];
-                let x = touch.clientX - offsetX;
-                let y = touch.clientY - offsetY;
-                x = Math.max(0, Math.min(x, window.innerWidth - floatingWindow.offsetWidth));
-                y = Math.max(0, Math.min(y, window.innerHeight - floatingWindow.offsetHeight));
-                floatingWindow.style.left = x + 'px';
-                floatingWindow.style.top = y + 'px';
-                floatingWindow.style.right = 'auto';
-                floatingWindow.style.bottom = 'auto';
-            }, { passive: true });
-
-            floatHeader.addEventListener('touchend', () => {
-                isDragging = false;
-                floatingWindow.style.transition = '';
-            }, { passive: true });
+    _onPipModeChanged(isInPip) {
+        if (isInPip) {
+            this.addLog('已进入浮窗模式', 'info');
+            this._updatePipWindow();
+        } else {
+            this.addLog('已退出浮窗模式', 'info');
+            this._exitPipMode();
         }
     }
 
@@ -609,7 +598,7 @@ class Auto366App {
         this._updateStatus('dirStatus', '已就绪', 'running');
         this.isMonitoring = true;
         this._updateMonitorBtn('stop');
-        document.getElementById('minimizeBtn').style.display = '';
+        document.getElementById('enterPipBtn').style.display = '';
 
         this._startPolling();
         this.showToast('监听已启动', 'success');
@@ -684,7 +673,8 @@ class Auto366App {
         this._stopPolling();
         this._updateStatus('monitorStatus', '已停止', 'stopped');
         this._updateMonitorBtn('start');
-        document.getElementById('minimizeBtn').style.display = 'none';
+        document.getElementById('enterPipBtn').style.display = 'none';
+        document.getElementById('exitPipBtn').style.display = 'none';
         this.addLog('监听已停止', 'warning');
     }
 
@@ -786,6 +776,7 @@ class Auto366App {
                 if (prevSize === undefined) {
                     this.knownFiles.add(name);
                     this.addLog('发现新目录: ' + name, 'info');
+                    this._scanDirFiles(entry, []);
                 }
 
                 if (currentSize > prevSize) {
@@ -838,6 +829,7 @@ class Auto366App {
                 app._updateStatus('answerCount', String(app.answers.length), 'running');
                 app._renderAnswers();
                 app._updateFloatingWindow();
+                app._updatePipWindow();
                 app.showNotification('answer');
             }
         }).catch((error) => {
@@ -1159,45 +1151,83 @@ class Auto366App {
     }
 
     showFloatingWindow() {
-        this.isFloating = true;
-        document.getElementById('floatingWindow').style.display = '';
-        document.querySelector('.main-content').style.display = 'none';
-        this._updateFloatingWindow();
+        this._enterPipMode();
     }
 
     hideFloatingWindow() {
+        this._exitPipMode();
+    }
+
+    _enterPipMode() {
+        this.isFloating = true;
+        this._updatePipWindow();
+        document.getElementById('enterPipBtn').style.display = 'none';
+        document.getElementById('exitPipBtn').style.display = '';
+        
+        if (window.FlipbookScanner) {
+            FlipbookScanner.enterPipMode(() => {
+                this.addLog('已进入画中画模式', 'success');
+            }, (err) => {
+                this.addLog('进入画中画失败: ' + err, 'error');
+            });
+        }
+    }
+
+    _exitPipMode() {
         this.isFloating = false;
-        document.getElementById('floatingWindow').style.display = 'none';
-        document.querySelector('.main-content').style.display = '';
-        this.showView('answers');
+        const pipWindow = document.getElementById('pipWindow');
+        if (pipWindow) pipWindow.style.display = 'none';
+        document.getElementById('enterPipBtn').style.display = '';
+        document.getElementById('exitPipBtn').style.display = 'none';
+    }
+
+    _updatePipWindow() {
+        const pipWindow = document.getElementById('pipWindow');
+        const pipEmpty = document.getElementById('pipEmpty');
+        const pipAnswers = document.getElementById('pipAnswers');
+        if (!pipWindow) return;
+
+        pipWindow.style.display = '';
+
+        if (!this.answers.length) {
+            pipEmpty.style.display = '';
+            pipAnswers.style.display = 'none';
+            return;
+        }
+
+        pipEmpty.style.display = 'none';
+        pipAnswers.style.display = '';
+
+        const recentAnswers = this.answers.slice(-15).reverse();
+        pipAnswers.innerHTML = recentAnswers.map((ans) => `
+            <div class="pip-answer-item">
+                <div class="pip-answer-type">${this._escapeHtml(ans.pattern || '未知')}</div>
+                <div class="pip-answer-q">${this._escapeHtml(ans.question || '')}</div>
+                <div class="pip-answer-a">${this._escapeHtml(ans.answer || '')}</div>
+            </div>
+        `).join('');
+    }
+
+    _onPipScroll(direction) {
+        const pipAnswers = document.getElementById('pipAnswers');
+        if (!pipAnswers) return;
+        if (direction === 'up') {
+            pipAnswers.scrollTop = Math.max(0, pipAnswers.scrollTop - 80);
+        } else {
+            pipAnswers.scrollTop = Math.min(pipAnswers.scrollHeight - pipAnswers.clientHeight, pipAnswers.scrollTop + 80);
+        }
+    }
+
+    _onPipModeChanged(isInPip) {
+        if (isInPip) {
+            this.addLog('已进入 PiP 模式', 'info');
+        } else {
+            this.addLog('已退出 PiP 模式', 'info');
+            this._exitPipMode();
+        }
     }
 
     _updateFloatingWindow() {
-        const floatEmpty = document.getElementById('floatEmpty');
-        const floatAnswers = document.getElementById('floatAnswers');
-        if (this.answers.length === 0) {
-            if (floatEmpty) floatEmpty.style.display = '';
-            if (floatAnswers) floatAnswers.style.display = 'none';
-            return;
-        }
-        if (floatEmpty) floatEmpty.style.display = 'none';
-        if (floatAnswers) floatAnswers.style.display = '';
-
-        const recentAnswers = this.answers.slice(-20).reverse();
-        floatAnswers.innerHTML = recentAnswers.map((ans, i) => `
-            <div class="float-answer-item" data-index="${this.answers.length - 1 - i}">
-                <div class="float-answer-q">${this._escapeHtml(ans.question || '')}</div>
-                <div class="float-answer-a">${this._escapeHtml(ans.answer || '')}</div>
-            </div>
-        `).join('');
-
-        floatAnswers.querySelectorAll('.float-answer-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const idx = parseInt(item.getAttribute('data-index'));
-                const ans = this.answers[idx];
-                if (ans) this._copyToClipboard(ans.answer);
-            });
-        });
     }
 
     _renderAnswers() {

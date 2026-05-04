@@ -6,10 +6,12 @@ var path = require('path');
 module.exports = function(context) {
     var rootdir = context.opts.projectRoot;
     var srcFile = path.join(rootdir, 'src', 'FlipbookScanner.java');
+    var mainActivitySrc = path.join(rootdir, 'src', 'MainActivity.java');
     var splashSrc = path.join(rootdir, 'src', 'drawable', 'ic_cdv_splashscreen.xml');
     var buildExtrasSrc = path.join(rootdir, 'build-extras.gradle');
     var platformDir = path.join(rootdir, 'platforms', 'android', 'app', 'src', 'main');
     var destDir = path.join(platformDir, 'java', 'com', 'auto366', 'flipbook');
+    var mainActivityDestDir = path.join(platformDir, 'java', 'com', 'auto366', 'mobile');
 
     if (!fs.existsSync(srcFile)) {
         console.log('Warning: FlipbookScanner.java not found in src/');
@@ -23,6 +25,12 @@ module.exports = function(context) {
     var destFile = path.join(destDir, 'FlipbookScanner.java');
     fs.copyFileSync(srcFile, destFile);
     console.log('Copied: FlipbookScanner.java -> ' + path.relative(platformDir, destFile));
+
+    if (fs.existsSync(mainActivitySrc) && fs.existsSync(mainActivityDestDir)) {
+        var mainActivityDest = path.join(mainActivityDestDir, 'MainActivity.java');
+        fs.copyFileSync(mainActivitySrc, mainActivityDest);
+        console.log('Copied: MainActivity.java -> ' + path.relative(platformDir, mainActivityDest));
+    }
 
     var configXmlPath = path.join(platformDir, 'res', 'xml', 'config.xml');
     if (fs.existsSync(configXmlPath)) {

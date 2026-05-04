@@ -127,7 +127,9 @@ async function createFloatingWindow(width, height) {
 
 function onPause() {
     console.log('App paused');
-    createFloatingWindow(600, 900);
+    if (window.app && window.app.isMonitoring && window.app.settings.autoPipMode) {
+        window.app._enterPipMode();
+    }
 }
 
 function onResume() {

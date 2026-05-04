@@ -110,9 +110,13 @@
                                 <i class="bi bi-play-circle"></i>
                                 <span>开始监听</span>
                             </button>
-                            <button id="minimizeBtn" class="secondary-btn full-width" style="display:none">
-                                <i class="bi bi-arrows-angle-expand"></i>
-                                <span>最小化为浮窗</span>
+                            <button id="enterPipBtn" class="secondary-btn full-width" style="display:none">
+                                <i class="bi bi-window-sidebar"></i>
+                                <span>进入画中画</span>
+                            </button>
+                            <button id="exitPipBtn" class="secondary-btn full-width" style="display:none">
+                                <i class="bi bi-x-circle"></i>
+                                <span>退出画中画</span>
                             </button>
                         </div>
                     </div>
@@ -258,6 +262,18 @@
                                 </div>
                             </div>
                             <div class="setting-item">
+                                <div class="setting-toggle">
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">开始监听时自动进入浮窗模式</span>
+                                        <span class="toggle-desc">进入画中画模式并放到后台</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoPipMode" title="开始监听时自动进入浮窗模式">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item">
                                 <label>轮询间隔 (毫秒)</label>
                                 <input type="number" id="pollIntervalInput" class="form-input" value="1000" min="500" max="30000" step="500" title="轮询间隔" placeholder="输入轮询间隔（毫秒）">
                             </div>
@@ -305,20 +321,12 @@
             </div>
         </main>
 
-        <div id="floatingWindow" class="floating-window" style="display:none">
-            <div class="float-header" id="floatHeader">
-                <span class="float-title">Auto366</span>
-                <button class="float-expand-btn" id="floatExpandBtn" title="展开">
-                    <i class="bi bi-arrows-fullscreen"></i>
-                </button>
+        <div id="pipWindow" class="pip-window" style="display:none">
+            <div class="pip-empty" id="pipEmpty">
+                <i class="bi bi-inbox"></i>
+                <span>暂无答案数据</span>
             </div>
-            <div class="float-body" id="floatBody">
-                <div class="float-empty" id="floatEmpty">
-                    <i class="bi bi-hourglass-split"></i>
-                    <span>等待答案...</span>
-                </div>
-                <div class="float-answers" id="floatAnswers" style="display:none"></div>
-            </div>
+            <div class="pip-answers" id="pipAnswers" style="display:none"></div>
         </div>
 
         <div id="notificationBar" class="notification-bar" style="display:none">
