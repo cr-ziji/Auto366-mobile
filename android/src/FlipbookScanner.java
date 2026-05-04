@@ -459,6 +459,16 @@ public class FlipbookScanner extends CordovaPlugin {
         }
     }
 
+    private String getSafBaseDir() {
+        if (safTreeUri.isEmpty()) return "";
+        String uri = Uri.decode(safTreeUri);
+        int idx = uri.indexOf("Android/data");
+        if (idx >= 0) {
+            return "/storage/emulated/0/Android/data";
+        }
+        return "/storage/emulated/0";
+    }
+
     private String getSafRelativePath(String fullPath) {
         String clean = fullPath.replace("/storage/emulated/0/", "");
         int idx = clean.indexOf("Android/data/");
@@ -466,6 +476,13 @@ public class FlipbookScanner extends CordovaPlugin {
             return clean.substring(idx + "Android/data/".length());
         }
         return clean;
+    }
+
+    private String buildFullPath(String parentPath, String childName) {
+        if (parentPath.endsWith("/")) {
+            return parentPath + childName;
+        }
+        return parentPath + "/" + childName;
     }
 
     private JSONArray listSafFiles(String fullPath) {
@@ -502,6 +519,7 @@ public class FlipbookScanner extends CordovaPlugin {
                 file.put("isDirectory", child.isDirectory());
                 file.put("isFile", child.isFile());
                 file.put("size", child.length());
+                file.put("path", buildFullPath(fullPath, child.getName()));
                 files.put(file);
             }
         } catch (Exception e) {
