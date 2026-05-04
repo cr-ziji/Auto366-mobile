@@ -674,7 +674,7 @@ class AnswerExtractor {
             if (jsonData.questionObj) {
                 answers.push(...this._parseQuestionFile(jsonData, mediaIndex));
             }
-            if (jsonData.questions_list || jsonData.record_speak || jsonData.answer_text) {
+            if (jsonData.questions_list || jsonData.record_speak || jsonData.answer_text || jsonData.options) {
                 answers.push(...this._parseQuestionFile({ questionObj: jsonData }, mediaIndex));
             }
             if (Array.isArray(jsonData.answers)) {

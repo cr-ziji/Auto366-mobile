@@ -21,6 +21,7 @@ import java.io.InputStreamReader;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.app.Activity;
 import android.util.Base64;
@@ -458,7 +459,16 @@ public class FlipbookScanner extends CordovaPlugin {
         }
     }
 
-    private JSONArray listSafFiles(String relativePath) {
+    private String getSafRelativePath(String fullPath) {
+        String clean = fullPath.replace("/storage/emulated/0/", "");
+        int idx = clean.indexOf("Android/data/");
+        if (idx >= 0) {
+            return clean.substring(idx + "Android/data/".length());
+        }
+        return clean;
+    }
+
+    private JSONArray listSafFiles(String fullPath) {
         JSONArray files = new JSONArray();
         try {
             if (safTreeUri.isEmpty()) return files;
@@ -467,18 +477,25 @@ public class FlipbookScanner extends CordovaPlugin {
             DocumentFile treeDoc = DocumentFile.fromTreeUri(cordova.getActivity(), treeUriObj);
             if (treeDoc == null) return files;
             
+            String relPath = getSafRelativePath(fullPath);
+            Log.i(TAG, "listSafFiles fullPath: " + fullPath + " -> relPath: " + relPath);
+            
             DocumentFile targetDir = treeDoc;
-            if (!relativePath.isEmpty()) {
-                String[] parts = relativePath.replace("/storage/emulated/0/", "").split("/");
+            if (!relPath.isEmpty()) {
+                String[] parts = relPath.split("/");
                 for (String part : parts) {
                     if (part.isEmpty()) continue;
                     DocumentFile child = targetDir.findFile(part);
-                    if (child == null || !child.isDirectory()) return files;
+                    if (child == null || !child.isDirectory()) {
+                        Log.w(TAG, "listSafFiles cannot find dir: " + part);
+                        return files;
+                    }
                     targetDir = child;
                 }
             }
             
             DocumentFile[] children = targetDir.listFiles();
+            Log.i(TAG, "listSafFiles found " + children.length + " files in " + relPath);
             for (DocumentFile child : children) {
                 JSONObject file = new JSONObject();
                 file.put("name", child.getName());
@@ -493,11 +510,11 @@ public class FlipbookScanner extends CordovaPlugin {
         return files;
     }
 
-    private String readSafFile(String relativePath) {
+    private String readSafFile(String fullPath) {
         try {
             if (safTreeUri.isEmpty()) return null;
             
-            DocumentFile file = findSafFile(relativePath);
+            DocumentFile file = findSafFile(fullPath);
             if (file == null || !file.isFile()) return null;
 
             ContentResolver resolver = cordova.getActivity().getContentResolver();
@@ -519,11 +536,11 @@ public class FlipbookScanner extends CordovaPlugin {
         }
     }
 
-    private byte[] readSafBinary(String relativePath) {
+    private byte[] readSafBinary(String fullPath) {
         try {
             if (safTreeUri.isEmpty()) return null;
             
-            DocumentFile file = findSafFile(relativePath);
+            DocumentFile file = findSafFile(fullPath);
             if (file == null || !file.isFile()) return null;
 
             ContentResolver resolver = cordova.getActivity().getContentResolver();
@@ -544,23 +561,76 @@ public class FlipbookScanner extends CordovaPlugin {
         }
     }
 
-    private boolean deleteSafDir(String relativePath) {
+    private boolean deleteSafDir(String fullPath) {
         try {
             if (safTreeUri.isEmpty()) return false;
             
-            DocumentFile file = findSafFile(relativePath);
-            if (file == null) return false;
+            DocumentFile dir = findSafFile(fullPath);
+            if (dir == null || !dir.isDirectory()) return false;
             
-            return file.delete();
+            DocumentFile[] children = dir.listFiles();
+            boolean allSuccess = true;
+            for (DocumentFile child : children) {
+                if (child.isDirectory()) {
+                    if (!deleteSafDirRecursive(child)) {
+                        allSuccess = false;
+                    }
+                } else {
+                    if (!child.delete()) {
+                        allSuccess = false;
+                    }
+                }
+            }
+            return allSuccess;
         } catch (Exception e) {
             Log.e(TAG, "deleteSafDir error: " + e.getMessage());
             return false;
         }
     }
 
-    private boolean ensureSafDir(String relativePath) {
+    private boolean deleteSafDirRecursive(DocumentFile dir) {
+        try {
+            DocumentFile[] children = dir.listFiles();
+            for (DocumentFile child : children) {
+                if (child.isDirectory()) {
+                    deleteSafDirRecursive(child);
+                }
+                child.delete();
+            }
+            return dir.delete();
+        } catch (Exception e) {
+            Log.e(TAG, "deleteSafDirRecursive error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean ensureSafDir(String fullPath) {
         try {
             if (safTreeUri.isEmpty()) return false;
+            
+            Uri treeUriObj = Uri.parse(safTreeUri);
+            DocumentFile treeDoc = DocumentFile.fromTreeUri(cordova.getActivity(), treeUriObj);
+            if (treeDoc == null) return false;
+            
+            String relPath = getSafRelativePath(fullPath);
+            String[] parts = relPath.split("/");
+            DocumentFile current = treeDoc;
+            
+            for (String part : parts) {
+                if (part.isEmpty()) continue;
+                DocumentFile child = current.findFile(part);
+                if (child == null) {
+                    child = current.createDirectory(part);
+                    if (child == null) {
+                        Log.e(TAG, "Failed to create directory: " + part);
+                        return false;
+                    }
+                } else if (!child.isDirectory()) {
+                    Log.e(TAG, "Path exists but is not a directory: " + part);
+                    return false;
+                }
+                current = child;
+            }
             return true;
         } catch (Exception e) {
             Log.e(TAG, "ensureSafDir error: " + e.getMessage());
@@ -568,20 +638,24 @@ public class FlipbookScanner extends CordovaPlugin {
         }
     }
 
-    private DocumentFile findSafFile(String relativePath) {
+    private DocumentFile findSafFile(String fullPath) {
         try {
             Uri treeUriObj = Uri.parse(safTreeUri);
             DocumentFile treeDoc = DocumentFile.fromTreeUri(cordova.getActivity(), treeUriObj);
             if (treeDoc == null) return null;
             
-            String cleanPath = relativePath.replace("/storage/emulated/0/", "");
-            String[] parts = cleanPath.split("/");
+            String relPath = getSafRelativePath(fullPath);
+            Log.i(TAG, "findSafFile fullPath: " + fullPath + " -> relPath: " + relPath);
+            String[] parts = relPath.split("/");
             DocumentFile current = treeDoc;
             
             for (String part : parts) {
                 if (part.isEmpty()) continue;
                 DocumentFile child = current.findFile(part);
-                if (child == null) return null;
+                if (child == null) {
+                    Log.w(TAG, "findSafFile cannot find: " + part);
+                    return null;
+                }
                 current = child;
             }
             return current;

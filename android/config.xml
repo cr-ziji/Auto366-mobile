@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget id="com.auto366.mobile" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
-    <name>Auto366 Mobile</name>
+    <name>Auto366</name>
     <description>
         天学网自动化答题工具移动版 - 解放双手，提高学习效率！
     </description>
