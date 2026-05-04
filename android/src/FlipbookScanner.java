@@ -16,18 +16,17 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.net.Uri;
-import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.app.Activity;
-import android.database.Cursor;
-import android.os.ParcelFileDescriptor;
 import android.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import androidx.documentfile.provider.DocumentFile;
 
 public class FlipbookScanner extends CordovaPlugin {
 
@@ -405,7 +404,16 @@ public class FlipbookScanner extends CordovaPlugin {
     private void requestSafTree(CallbackContext callbackContext) {
         cordova.getThreadPool().execute(() -> {
             Activity activity = this.cordova.getActivity();
+            Uri uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata");
+            DocumentFile documentFile = DocumentFile.fromTreeUri(activity, uri);
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                    | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+            if (documentFile != null) {
+                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, documentFile.getUri());
+            }
             this.safTreeCallbackContext = callbackContext;
             this.cordova.startActivityForResult(this, intent, 100);
         });
@@ -450,44 +458,34 @@ public class FlipbookScanner extends CordovaPlugin {
         }
     }
 
-    private Uri buildSafUri(String relativePath) {
-        if (safTreeUri.isEmpty()) {
-            return null;
-        }
-        String treeDocId = DocumentsContract.getTreeDocumentId(Uri.parse(safTreeUri));
-        String docId = treeDocId + "/" + relativePath;
-        return DocumentsContract.buildDocumentUriUsingTree(Uri.parse(safTreeUri), docId);
-    }
-
     private JSONArray listSafFiles(String relativePath) {
         JSONArray files = new JSONArray();
         try {
-            ContentResolver resolver = cordova.getActivity().getContentResolver();
-            Uri docUri = buildSafUri(relativePath);
-            if (docUri == null) return files;
-
-            Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(docUri, DocumentsContract.getDocumentId(docUri));
-            try (Cursor cursor = resolver.query(childrenUri,
-                    new String[]{DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                                 DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                                 DocumentsContract.Document.COLUMN_MIME_TYPE,
-                                 DocumentsContract.Document.COLUMN_SIZE},
-                    null, null, null)) {
-                if (cursor != null) {
-                    while (cursor.moveToNext()) {
-                        JSONObject file = new JSONObject();
-                        String docId = cursor.getString(0);
-                        String displayName = cursor.getString(1);
-                        String mimeType = cursor.getString(2);
-                        long size = cursor.getLong(3);
-
-                        file.put("name", displayName);
-                        file.put("isDirectory", mimeType.equals(DocumentsContract.Document.MIME_TYPE_DIR));
-                        file.put("isFile", !mimeType.equals(DocumentsContract.Document.MIME_TYPE_DIR));
-                        file.put("size", size);
-                        files.put(file);
-                    }
+            if (safTreeUri.isEmpty()) return files;
+            
+            Uri treeUriObj = Uri.parse(safTreeUri);
+            DocumentFile treeDoc = DocumentFile.fromTreeUri(cordova.getActivity(), treeUriObj);
+            if (treeDoc == null) return files;
+            
+            DocumentFile targetDir = treeDoc;
+            if (!relativePath.isEmpty()) {
+                String[] parts = relativePath.replace("/storage/emulated/0/", "").split("/");
+                for (String part : parts) {
+                    if (part.isEmpty()) continue;
+                    DocumentFile child = targetDir.findFile(part);
+                    if (child == null || !child.isDirectory()) return files;
+                    targetDir = child;
                 }
+            }
+            
+            DocumentFile[] children = targetDir.listFiles();
+            for (DocumentFile child : children) {
+                JSONObject file = new JSONObject();
+                file.put("name", child.getName());
+                file.put("isDirectory", child.isDirectory());
+                file.put("isFile", child.isFile());
+                file.put("size", child.length());
+                files.put(file);
             }
         } catch (Exception e) {
             Log.e(TAG, "listSafFiles error: " + e.getMessage());
@@ -497,22 +495,24 @@ public class FlipbookScanner extends CordovaPlugin {
 
     private String readSafFile(String relativePath) {
         try {
-            ContentResolver resolver = cordova.getActivity().getContentResolver();
-            Uri docUri = buildSafUri(relativePath);
-            if (docUri == null) return null;
+            if (safTreeUri.isEmpty()) return null;
+            
+            DocumentFile file = findSafFile(relativePath);
+            if (file == null || !file.isFile()) return null;
 
-            try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(docUri, "r")) {
-                if (pfd == null) return null;
-                FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
-                BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line).append("\n");
-                }
-                fis.close();
-                return sb.toString();
+            ContentResolver resolver = cordova.getActivity().getContentResolver();
+            InputStream inputStream = resolver.openInputStream(file.getUri());
+            if (inputStream == null) return null;
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append("\n");
             }
+            reader.close();
+            inputStream.close();
+            return sb.toString();
         } catch (Exception e) {
             Log.e(TAG, "readSafFile error: " + e.getMessage());
             return null;
@@ -521,22 +521,23 @@ public class FlipbookScanner extends CordovaPlugin {
 
     private byte[] readSafBinary(String relativePath) {
         try {
-            ContentResolver resolver = cordova.getActivity().getContentResolver();
-            Uri docUri = buildSafUri(relativePath);
-            if (docUri == null) return null;
+            if (safTreeUri.isEmpty()) return null;
+            
+            DocumentFile file = findSafFile(relativePath);
+            if (file == null || !file.isFile()) return null;
 
-            try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(docUri, "r")) {
-                if (pfd == null) return null;
-                FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
-                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                int nRead;
-                byte[] data = new byte[4096];
-                while ((nRead = fis.read(data, 0, data.length)) != -1) {
-                    buffer.write(data, 0, nRead);
-                }
-                fis.close();
-                return buffer.toByteArray();
+            ContentResolver resolver = cordova.getActivity().getContentResolver();
+            InputStream inputStream = resolver.openInputStream(file.getUri());
+            if (inputStream == null) return null;
+
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            int nRead;
+            byte[] data = new byte[4096];
+            while ((nRead = inputStream.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, nRead);
             }
+            inputStream.close();
+            return buffer.toByteArray();
         } catch (Exception e) {
             Log.e(TAG, "readSafBinary error: " + e.getMessage());
             return null;
@@ -545,11 +546,12 @@ public class FlipbookScanner extends CordovaPlugin {
 
     private boolean deleteSafDir(String relativePath) {
         try {
-            ContentResolver resolver = cordova.getActivity().getContentResolver();
-            Uri docUri = buildSafUri(relativePath);
-            if (docUri == null) return false;
-            DocumentsContract.deleteDocument(resolver, docUri);
-            return true;
+            if (safTreeUri.isEmpty()) return false;
+            
+            DocumentFile file = findSafFile(relativePath);
+            if (file == null) return false;
+            
+            return file.delete();
         } catch (Exception e) {
             Log.e(TAG, "deleteSafDir error: " + e.getMessage());
             return false;
@@ -558,12 +560,34 @@ public class FlipbookScanner extends CordovaPlugin {
 
     private boolean ensureSafDir(String relativePath) {
         try {
-            Uri docUri = buildSafUri(relativePath);
-            if (docUri == null) return false;
+            if (safTreeUri.isEmpty()) return false;
             return true;
         } catch (Exception e) {
             Log.e(TAG, "ensureSafDir error: " + e.getMessage());
             return false;
+        }
+    }
+
+    private DocumentFile findSafFile(String relativePath) {
+        try {
+            Uri treeUriObj = Uri.parse(safTreeUri);
+            DocumentFile treeDoc = DocumentFile.fromTreeUri(cordova.getActivity(), treeUriObj);
+            if (treeDoc == null) return null;
+            
+            String cleanPath = relativePath.replace("/storage/emulated/0/", "");
+            String[] parts = cleanPath.split("/");
+            DocumentFile current = treeDoc;
+            
+            for (String part : parts) {
+                if (part.isEmpty()) continue;
+                DocumentFile child = current.findFile(part);
+                if (child == null) return null;
+                current = child;
+            }
+            return current;
+        } catch (Exception e) {
+            Log.e(TAG, "findSafFile error: " + e.getMessage());
+            return null;
         }
     }
 }

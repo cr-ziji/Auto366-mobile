@@ -7,6 +7,7 @@ module.exports = function(context) {
     var rootdir = context.opts.projectRoot;
     var srcFile = path.join(rootdir, 'src', 'FlipbookScanner.java');
     var splashSrc = path.join(rootdir, 'src', 'drawable', 'ic_cdv_splashscreen.xml');
+    var buildExtrasSrc = path.join(rootdir, 'build-extras.gradle');
     var platformDir = path.join(rootdir, 'platforms', 'android', 'app', 'src', 'main');
     var destDir = path.join(platformDir, 'java', 'com', 'auto366', 'flipbook');
 
@@ -39,5 +40,12 @@ module.exports = function(context) {
         var splashDest = path.join(splashDestDir, 'ic_cdv_splashscreen.xml');
         fs.copyFileSync(splashSrc, splashDest);
         console.log('Copied: ic_cdv_splashscreen.xml -> ' + path.relative(platformDir, splashDest));
+    }
+
+    var platformRoot = path.join(rootdir, 'platforms', 'android', 'app');
+    if (fs.existsSync(buildExtrasSrc)) {
+        var buildExtrasDest = path.join(platformRoot, 'build-extras.gradle');
+        fs.copyFileSync(buildExtrasSrc, buildExtrasDest);
+        console.log('Copied: build-extras.gradle -> ' + path.relative(platformRoot, buildExtrasDest));
     }
 };
