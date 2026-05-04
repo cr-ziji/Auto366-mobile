@@ -28,8 +28,10 @@ import android.content.IntentFilter;
 import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Rational;
 import android.app.PendingIntent;
+import android.util.Log;
 
 import org.apache.cordova.*;
 
@@ -45,6 +47,17 @@ public class MainActivity extends CordovaActivity
 
     private BroadcastReceiver pipActionReceiver;
     public static MainActivity instance = null;
+    private boolean isMonitoring = false;
+    private boolean autoPipMode = false;
+    private boolean isEnteringPip = false;
+
+    public void setMonitoring(boolean monitoring) {
+        this.isMonitoring = monitoring;
+    }
+
+    public void setAutoPipMode(boolean autoPip) {
+        this.autoPipMode = autoPip;
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -61,9 +74,22 @@ public class MainActivity extends CordovaActivity
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        if (isMonitoring && autoPipMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (!isEnteringPip) {
+                isEnteringPip = true;
+                Log.i("MainActivity", "Auto-entering PiP on pause");
+                enterPipMode();
+            }
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         instance = this;
+        isEnteringPip = false;
     }
 
     @Override
@@ -73,16 +99,32 @@ public class MainActivity extends CordovaActivity
         if (instance == this) instance = null;
     }
 
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (isMonitoring && autoPipMode && !isEnteringPip) {
+            isEnteringPip = true;
+            Log.i("MainActivity", "Auto-entering PiP on user leave");
+            enterPipMode();
+        }
+    }
+
     public void registerPipReceiver() {
-        if (pipActionReceiver != null) return;
+        if (pipActionReceiver != null) {
+            Log.i("MainActivity", "Receiver already registered");
+            return;
+        }
 
         pipActionReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
+                Log.i("MainActivity", "Broadcast received: " + action);
                 if (ACTION_SCROLL_UP.equals(action)) {
+                    Log.i("MainActivity", "Scroll UP triggered");
                     sendScrollEventToJS("up");
                 } else if (ACTION_SCROLL_DOWN.equals(action)) {
+                    Log.i("MainActivity", "Scroll DOWN triggered");
                     sendScrollEventToJS("down");
                 }
             }
@@ -92,14 +134,17 @@ public class MainActivity extends CordovaActivity
             IntentFilter filter = new IntentFilter();
             filter.addAction(ACTION_SCROLL_UP);
             filter.addAction(ACTION_SCROLL_DOWN);
+            filter.setPriority(1000);
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(pipActionReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+                registerReceiver(pipActionReceiver, filter, Context.RECEIVER_EXPORTED);
+                Log.i("MainActivity", "Receiver registered with RECEIVER_EXPORTED");
             } else {
                 registerReceiver(pipActionReceiver, filter);
+                Log.i("MainActivity", "Receiver registered normally");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("MainActivity", "Failed to register receiver: " + e.getMessage());
         }
     }
 
@@ -142,10 +187,6 @@ public class MainActivity extends CordovaActivity
         if (appView != null) {
             String js = "if(window.app&&typeof window.app._onPipModeChanged==='function'){window.app._onPipModeChanged(" + isInPictureInPictureMode + ");}";
             appView.sendJavascript(js);
-        }
-        
-        if (!isInPictureInPictureMode) {
-            unregisterPipReceiver();
         }
     }
 

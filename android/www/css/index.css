@@ -943,10 +943,28 @@ body {
     bottom: 0;
     background: #F5F5F5;
     z-index: 9999;
-    display: flex;
+    display: none;
     flex-direction: column;
     overflow: hidden;
     border-radius: 16px;
+    transition: background 0.3s ease;
+}
+
+#app.pip-active .pip-window {
+    display: flex;
+}
+
+#app.pip-active .header,
+#app.pip-active .side-menu,
+#app.pip-active .menu-overlay,
+#app.pip-active .main-content,
+#app.pip-active .bottom-nav,
+#app.pip-active .settings-card {
+    display: none !important;
+}
+
+.dark-mode .pip-window {
+    background: #1A1A1A;
 }
 
 .pip-empty {
@@ -958,6 +976,11 @@ body {
     padding: 20px;
     color: #9E9E9E;
     gap: 8px;
+    transition: color 0.3s ease;
+}
+
+.dark-mode .pip-empty {
+    color: #888888;
 }
 
 .pip-empty i {
@@ -974,6 +997,8 @@ body {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 8px;
+    min-height: 0;
+    max-height: 300px;
 }
 
 .pip-answer-item {
@@ -982,6 +1007,12 @@ body {
     padding: 10px 12px;
     margin-bottom: 6px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    transition: background 0.3s ease;
+}
+
+.dark-mode .pip-answer-item {
+    background: #2A2A2A;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
 .pip-answer-type {
@@ -993,6 +1024,12 @@ body {
     background: #E3F2FD;
     border-radius: 4px;
     display: inline-block;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.dark-mode .pip-answer-type {
+    color: #64B5F6;
+    background: #1E3A5F;
 }
 
 .pip-answer-q {
@@ -1001,6 +1038,11 @@ body {
     font-weight: 500;
     margin-bottom: 4px;
     line-height: 1.3;
+    transition: color 0.3s ease;
+}
+
+.dark-mode .pip-answer-q {
+    color: #E0E0E0;
 }
 
 .pip-answer-a {
@@ -1009,6 +1051,12 @@ body {
     line-height: 1.4;
     padding-left: 8px;
     border-left: 2px solid #E3F2FD;
+    transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.dark-mode .pip-answer-a {
+    color: #AAAAAA;
+    border-left-color: #1E3A5F;
 }
 
 /* PiP 模式隐藏其他元素 */

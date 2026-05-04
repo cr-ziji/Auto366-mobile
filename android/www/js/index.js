@@ -29,25 +29,6 @@ function onDeviceReady() {
     document.addEventListener('backbutton', onBackKeyDown, false);
     document.addEventListener('pause', onPause, false);
     document.addEventListener('resume', onResume, false);
-
-    window.PictureInPicture_Promise = {
-        isPipModeSupported: () => {
-            return new Promise((resolve, reject) => {
-                window.PictureInPicture.isPipModeSupported(resolve, reject);
-            });
-        },
-        isPip: () => {
-            return new Promise((resolve, reject) => {
-                window.PictureInPicture.isPip(resolve, reject);
-            });
-        },
-        enter: (width, height) => {
-            return new Promise((resolve, reject) => {
-                window.PictureInPicture.enter(width, height, resolve, reject);
-            });
-        },
-        onPipModeChanged: window.PictureInPicture.onPipModeChanged
-    }
 }
 
 function onBackKeyDown() {
@@ -105,31 +86,8 @@ function onBackKeyDown() {
     }
 }
 
-async function createFloatingWindow(width, height) {
-    try {
-        const supported = await window.PictureInPicture_Promise.isPipModeSupported();
-        if (supported !== "true") {
-            console.log("当前设备不支持画中画");
-            return;
-        }
-        const isInPip = await window.PictureInPicture_Promise.isPip();
-        if (isInPip === "true") {
-            console.log("已在画中画模式");
-            return;
-        }
-        await window.PictureInPicture_Promise.enter(width, height);
-        console.log("悬浮窗创建成功");
-
-    } catch (error) {
-        console.error("创建悬浮窗失败:", error);
-    }
-}
-
 function onPause() {
     console.log('App paused');
-    if (window.app && window.app.isMonitoring && window.app.settings.autoPipMode) {
-        window.app._enterPipMode();
-    }
 }
 
 function onResume() {

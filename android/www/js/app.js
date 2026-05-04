@@ -1159,6 +1159,9 @@ class Auto366App {
     }
 
     _enterPipMode() {
+        const app = document.getElementById('app');
+        if (app) app.classList.add('pip-active');
+        
         this.isFloating = true;
         this._updatePipWindow();
         document.getElementById('enterPipBtn').style.display = 'none';
@@ -1175,6 +1178,9 @@ class Auto366App {
 
     _exitPipMode() {
         this.isFloating = false;
+        const app = document.getElementById('app');
+        if (app) app.classList.remove('pip-active');
+        
         const pipWindow = document.getElementById('pipWindow');
         if (pipWindow) pipWindow.style.display = 'none';
         document.getElementById('enterPipBtn').style.display = '';
@@ -1220,9 +1226,10 @@ class Auto366App {
 
     _onPipModeChanged(isInPip) {
         if (isInPip) {
-            this.addLog('已进入 PiP 模式', 'info');
+            this.addLog('已进入浮窗模式', 'info');
+            this._enterPipMode();
         } else {
-            this.addLog('已退出 PiP 模式', 'info');
+            this.addLog('已退出浮窗模式', 'info');
             this._exitPipMode();
         }
     }
