@@ -23,14 +23,6 @@ function onDeviceReady() {
         navigator.splashscreen.hide();
     }
 
-    if (window.nodejs) {
-        window.nodejs.channel.on('process-result', function(data) {
-            console.log('NodeJS result:', data);
-        });
-        window.nodejs.start('main.js');
-        console.log('Node.js backend started');
-    }
-
     window.app = new Auto366App();
     window.app.init();
 
