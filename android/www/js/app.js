@@ -252,7 +252,10 @@ class Auto366App {
 
         const enterPipBtn = document.getElementById('enterPipBtn');
         if (enterPipBtn) {
-            enterPipBtn.addEventListener('click', () => this._enterPipMode());
+            enterPipBtn.addEventListener('click', () => {
+                this._enterPipMode();
+                this._requestPipMode();
+            });
         }
 
         const exitPipBtn = document.getElementById('exitPipBtn');
@@ -1159,6 +1162,9 @@ class Auto366App {
     }
 
     _enterPipMode() {
+        if (this._pipActive) return;
+        this._pipActive = true;
+        
         const app = document.getElementById('app');
         if (app) app.classList.add('pip-active');
         
@@ -1166,17 +1172,12 @@ class Auto366App {
         this._updatePipWindow();
         document.getElementById('enterPipBtn').style.display = 'none';
         document.getElementById('exitPipBtn').style.display = '';
-        
-        if (window.FlipbookScanner) {
-            FlipbookScanner.enterPipMode(() => {
-                this.addLog('已进入画中画模式', 'success');
-            }, (err) => {
-                this.addLog('进入画中画失败: ' + err, 'error');
-            });
-        }
     }
 
     _exitPipMode() {
+        if (!this._pipActive) return;
+        this._pipActive = false;
+        
         this.isFloating = false;
         const app = document.getElementById('app');
         if (app) app.classList.remove('pip-active');
@@ -1185,6 +1186,16 @@ class Auto366App {
         if (pipWindow) pipWindow.style.display = 'none';
         document.getElementById('enterPipBtn').style.display = '';
         document.getElementById('exitPipBtn').style.display = 'none';
+    }
+
+    _requestPipMode() {
+        if (window.FlipbookScanner) {
+            FlipbookScanner.enterPipMode(() => {
+                this.addLog('已进入画中画模式', 'success');
+            }, (err) => {
+                this.addLog('进入画中画失败: ' + err, 'error');
+            });
+        }
     }
 
     _updatePipWindow() {

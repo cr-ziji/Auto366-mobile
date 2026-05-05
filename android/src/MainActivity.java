@@ -76,20 +76,13 @@ public class MainActivity extends CordovaActivity
     @Override
     protected void onPause() {
         super.onPause();
-        if (isMonitoring && autoPipMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            if (!isEnteringPip) {
-                isEnteringPip = true;
-                Log.i("MainActivity", "Auto-entering PiP on pause");
-                enterPipMode();
-            }
-        }
+        Log.i("MainActivity", "onPause: isMonitoring=" + isMonitoring + ", autoPipMode=" + autoPipMode + ", isInPip=" + isInPictureInPictureMode());
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         instance = this;
-        isEnteringPip = false;
     }
 
     @Override
@@ -102,7 +95,8 @@ public class MainActivity extends CordovaActivity
     @Override
     public void onUserLeaveHint() {
         super.onUserLeaveHint();
-        if (isMonitoring && autoPipMode && !isEnteringPip) {
+        Log.i("MainActivity", "onUserLeaveHint: isMonitoring=" + isMonitoring + ", autoPipMode=" + autoPipMode + ", isInPip=" + isInPictureInPictureMode());
+        if (isMonitoring && autoPipMode && !isEnteringPip && !isInPictureInPictureMode()) {
             isEnteringPip = true;
             Log.i("MainActivity", "Auto-entering PiP on user leave");
             enterPipMode();
@@ -168,7 +162,14 @@ public class MainActivity extends CordovaActivity
     public void enterPipMode() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return;
         
+        Log.i("MainActivity", "enterPipMode called");
         registerPipReceiver();
+
+        if (appView != null) {
+            appView.sendJavascript("if(window.app&&typeof window.app._enterPipMode==='function'){window.app._enterPipMode();}");
+        }
+        
+        try { Thread.sleep(300); } catch (InterruptedException e) {}
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder()
@@ -183,10 +184,19 @@ public class MainActivity extends CordovaActivity
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode);
+        Log.i("MainActivity", "PiP mode changed: " + isInPictureInPictureMode);
         
         if (appView != null) {
-            String js = "if(window.app&&typeof window.app._onPipModeChanged==='function'){window.app._onPipModeChanged(" + isInPictureInPictureMode + ");}";
-            appView.sendJavascript(js);
+            if (isInPictureInPictureMode) {
+                appView.sendJavascript("if(window.app&&typeof window.app._updatePipWindow==='function'){window.app._updatePipWindow();}");
+            } else {
+                appView.sendJavascript("if(window.app&&typeof window.app._exitPipMode==='function'){window.app._exitPipMode();}");
+            }
+        }
+        
+        if (!isInPictureInPictureMode) {
+            isEnteringPip = false;
+            Log.i("MainActivity", "Exited PiP, resetting flag");
         }
     }
 
