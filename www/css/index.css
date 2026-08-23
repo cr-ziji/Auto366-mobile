@@ -1418,7 +1418,6 @@ body {
 .dark-mode .floating-window.pip-mode .float-control-btn:active {
     background: #2563EB;
 }
-}
 
 @supports (padding: max(0px)) {
     .top-navbar {
@@ -1540,7 +1539,6 @@ body {
     width: calc(100% - 48px);
     max-width: 360px;
     text-align: center;
-    box-shadow: var(--shadow-xl);
     animation: slideUp 0.3s var(--ease);
     overflow: hidden;
 }
@@ -1604,7 +1602,6 @@ body {
 }
 
 .permission-btn.cancel {
-    background: var(--bg-tertiary);
     color: var(--text);
 }
 
