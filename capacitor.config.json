@@ -1,0 +1,16 @@
+{
+    "appId": "com.auto366.mobile",
+    "appName": "Auto366",
+    "webDir": "www",
+    "android": {
+        "allowMixedContent": false,
+        "captureInput": true,
+        "webContentsDebuggingEnabled": true
+    },
+    "plugins": {
+        "SplashScreen": {
+            "launchShowDuration": 0,
+            "launchAutoHide": true
+        }
+    }
+}

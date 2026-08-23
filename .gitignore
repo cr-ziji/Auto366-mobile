@@ -1,5 +1,3 @@
-node_modules/
-plugins/
-platforms/
-.idea/
-.vscode/
+node_modules
+.idea
+.vscode

@@ -1,0 +1,31 @@
+{
+  "name": "auto366-mobile",
+  "displayName": "Auto366 Mobile",
+  "version": "2.0.0",
+  "description": "天学网自动化答题工具Auto366移动版 - 解放双手，提高学习效率！",
+  "main": "index.js",
+  "scripts": {
+    "cap:sync": "npx cap sync android",
+    "cap:copy": "npx cap copy android",
+    "open-android": "npx cap open android",
+    "build": "npx cap copy android && cd android && gradlew assembleDebug",
+    "run-android": "npx cap run android",
+    "serve": "npx cap serve"
+  },
+  "keywords": [
+    "auto366"
+  ],
+  "author": "Auto366 Team",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/dialog": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0"
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Auto366</string>
+    <string name="title_activity_main">Auto366</string>
+    <string name="package_name">com.auto366.mobile</string>
+    <string name="custom_url_scheme">com.auto366.mobile</string>
+</resources>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="color-scheme" content="light dark">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: https: 'unsafe-eval' 'unsafe-inline' intent:; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content: https:;">
+    <title>Auto366 Mobile</title>
+    <link rel="icon" type="image/png" href="img/icon.png">
+    <link rel="stylesheet" href="css/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        <header class="top-navbar">
+            <div class="navbar-content">
+                <div class="navbar-left">
+                    <img src="img/icon.png" alt="Auto366" class="navbar-logo">
+                    <span class="navbar-title">Auto366</span>
+                </div>
+                <div class="navbar-right">
+                    <button id="menuToggle" class="menu-toggle" aria-label="Menu">
+                        <i class="bi bi-list"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <nav id="sideMenu" class="side-menu">
+            <div class="menu-header">
+                <img src="img/icon.png" alt="Auto366" class="menu-logo">
+                <h2 class="menu-title">Auto366</h2>
+                <button id="menuClose" class="menu-close" aria-label="Close">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="menu-items">
+                <a href="#" class="menu-item active" data-view="home">
+                    <i class="bi bi-house"></i>
+                    <span>首页</span>
+                </a>
+                <a href="#" class="menu-item" data-view="answers">
+                    <i class="bi bi-list-check"></i>
+                    <span>答案</span>
+                </a>
+                <a href="#" class="menu-item" data-view="logs">
+                    <i class="bi bi-terminal"></i>
+                    <span>日志</span>
+                </a>
+                <a href="#" class="menu-item" data-view="settings">
+                    <i class="bi bi-gear"></i>
+                    <span>设置</span>
+                </a>
+            </div>
+            <div class="menu-footer">
+                <span class="app-version">v1.0.0</span>
+            </div>
+        </nav>
+
+        <div id="menuOverlay" class="menu-overlay"></div>
+
+        <main class="main-content">
+            <div id="homeView" class="view-container active">
+                <div class="view-header">
+                    <h1 class="view-title">首页</h1>
+                </div>
+                <div class="card-container">
+                    <div class="status-card">
+                        <div class="card-header">
+                            <h3>服务状态</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="status-item">
+                                <div class="status-info">
+                                    <i class="bi bi-folder2-open status-icon"></i>
+                                    <div class="status-text">
+                                        <span class="status-label">目录状态</span>
+                                        <span id="dirStatus" class="status-value stopped">未就绪</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-info">
+                                    <i class="bi bi-broadcast status-icon"></i>
+                                    <div class="status-text">
+                                        <span class="status-label">监听状态</span>
+                                        <span id="monitorStatus" class="status-value stopped">未启动</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-info">
+                                    <i class="bi bi-list-check status-icon"></i>
+                                    <div class="status-text">
+                                        <span class="status-label">答案数量</span>
+                                        <span id="answerCount" class="status-value stopped">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-card">
+                        <div class="card-header">
+                            <h3>控制操作</h3>
+                        </div>
+                        <div class="card-content">
+                            <button id="toggleMonitorBtn" class="primary-btn full-width">
+                                <i class="bi bi-play-circle"></i>
+                                <span>开始监听</span>
+                            </button>
+                            <button id="enterPipBtn" class="secondary-btn full-width" style="display:none">
+                                <i class="bi bi-window-sidebar"></i>
+                                <span>进入画中画</span>
+                            </button>
+                            <button id="exitPipBtn" class="secondary-btn full-width" style="display:none">
+                                <i class="bi bi-x-circle"></i>
+                                <span>退出画中画</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="guide-card">
+                        <div class="card-header">
+                            <h3>使用说明</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="guide-step">
+                                <span class="step-num">1</span>
+                                <span>点击"开始监听"授权并初始化</span>
+                            </div>
+                            <div class="guide-step">
+                                <span class="step-num">2</span>
+                                <span>打开天学网APP任意练习</span>
+                            </div>
+                            <div class="guide-step">
+                                <span class="step-num">3</span>
+                                <span>答案将自动提取并显示</span>
+                            </div>
+                            <div class="guide-step">
+                                <span class="step-num">4</span>
+                                <span>最小化为浮窗可边做题边看答案</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="answersView" class="view-container">
+                <div class="view-header">
+                    <h1 class="view-title">答案</h1>
+                    <div class="view-actions">
+                    <button id="copyAllAnswersBtn" class="icon-btn" title="复制所有答案">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                    <button id="clearAnswersBtn" class="icon-btn" title="清空答案">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                </div>
+                <div class="card-container">
+                    <div class="answers-card">
+                        <div id="answersContainer" class="answers-container">
+                            <div class="no-data">
+                                <i class="bi bi-inbox"></i>
+                                <p>暂无答案数据</p>
+                                <small>开始监听后打开任意练习即可自动获取答案</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="logsView" class="view-container">
+                <div class="view-header">
+                    <h1 class="view-title">日志</h1>
+                    <div class="view-actions">
+                        <button id="copyLogsBtn" class="icon-btn" title="复制所有日志">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                        <button id="clearLogsBtn" class="icon-btn" title="清空日志">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-container">
+                    <div class="logs-card">
+                        <div id="logsContainer" class="logs-container">
+                            <div class="log-item normal">
+                                <i class="bi bi-hourglass-split"></i>
+                                <span>等待操作...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="card-content">
+                            <div class="stats-item">
+                                <i class="bi bi-list-ul"></i>
+                                <span>共 <span id="logCount">0</span> 条日志</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settingsView" class="view-container">
+                <div class="view-header">
+                    <h1 class="view-title">设置</h1>
+                </div>
+                <div class="card-container">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3>监听路径</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="setting-item">
+                                <label>Flipbook目录</label>
+                                <div class="path-display" id="flipbookPathDisplay">
+                                    <span>/storage/emulated/0/Android/data/com.up366.mobile/files/flipbook</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3>监听设置</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="setting-item">
+                                <div class="setting-toggle">
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">启动时自动开始监听</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoStartMonitor" title="启动时自动开始监听">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-toggle">
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">SAF 模式（存储访问框架）</span>
+                                        <span class="toggle-desc">适用于旧版本 Android，需手动选择目录</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="safMode" title="SAF 模式">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item" id="zeroWidthSetting">
+                                <div class="setting-toggle">
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">使用零宽度空字符路径绕过</span>
+                                        <span class="toggle-desc">Android 11+ 建议开启</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="useZeroWidth" title="使用零宽度空字符路径绕过" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-toggle">
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">后台监听自动浮窗模式</span>
+                                        <span class="toggle-desc">进入后台并监听中自动进入小窗模式</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoPipMode" title="开始监听时自动进入浮窗模式">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <label>轮询间隔 (毫秒)</label>
+                                <input type="number" id="pollIntervalInput" class="form-input" value="1000" min="500" max="30000" step="500" title="轮询间隔" placeholder="输入轮询间隔（毫秒）">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3>外观</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="setting-item">
+                                <label>主题模式</label>
+                                <div id="themeDropdown" class="custom-dropdown">
+                                    <div class="dropdown-selected" id="themeDropdownBtn">
+                                        <span id="themeDropdownText">跟随系统</span>
+                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                    </div>
+                                    <div class="dropdown-options" id="themeDropdownOptions">
+                                        <div class="dropdown-option" data-value="auto">跟随系统</div>
+                                        <div class="dropdown-option" data-value="dark">深色模式</div>
+                                        <div class="dropdown-option" data-value="light">浅色模式</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3>关于</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="about-info">
+                                    <img id="aboutLogo" src="img/icon.png" alt="Auto366" class="about-logo">
+                                    <h4>Auto366 Mobile</h4>
+                                    <p>v1.0.0</p>
+                                    <p class="about-desc">天学网答案提取器</p>
+                                    <button id="openWebsiteBtn" class="about-website" type="button">
+                                        <i class="bi bi-globe2"></i>
+                                        <span>官方网站</span>
+                                    </button>
+                                </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div id="pipWindow" class="pip-window" style="display:none">
+            <div class="pip-empty" id="pipEmpty">
+                <i class="bi bi-inbox"></i>
+                <span>暂无答案数据</span>
+            </div>
+            <div class="pip-answers" id="pipAnswers" style="display:none"></div>
+        </div>
+
+        <div id="notificationBar" class="notification-bar" style="display:none">
+            <div id="errorMsg" class="notification-item error" style="display:none">
+                <i class="bi bi-exclamation-circle"></i>
+                <span>出现报错，点击跳转</span>
+            </div>
+            <div id="answerMsg" class="notification-item answer" style="display:none">
+                <i class="bi bi-check-circle"></i>
+                <span>截获到答案，点击跳转</span>
+            </div>
+        </div>
+
+        <div id="permissionOverlay" class="permission-overlay" style="display:none">
+            <div class="permission-content">
+                <i class="bi bi-folder2-open permission-icon"></i>
+                <h3>需要"所有文件访问"权限</h3>
+                <p>需要访问天学网本地数据目录以提取答案，请在系统设置中开启此权限</p>
+                <div class="permission-actions">
+                    <button class="permission-btn cancel" id="permissionCancel">暂不开启</button>
+                    <button class="permission-btn primary" id="permissionGrant">前往开启</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingToast" class="toast">
+        <div class="toast-content">
+            <div class="loading-spinner"><div class="spinner"></div></div>
+            <span class="toast-message">处理中...</span>
+        </div>
+    </div>
+
+    <div id="messageToast" class="toast">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span class="toast-message"></span>
+        </div>
+    </div>
+
+    <script src="js/flipbook-native.js"></script>
+    <script src="js/crypto.js"></script>
+    <script src="js/answer.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/index.js"></script>
+</body>
+</html>
